@@ -84,7 +84,7 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-bold text-slate-800">HR Company</span>
           </div>
-          <a href="/admin/login" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50">관리자 로그인</a>
+          <div className="flex items-center gap-2"><a href="/portal/login" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50">문의자 로그인</a><a href="/admin/login" className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors px-4 py-2 rounded-lg hover:bg-slate-100">관리자 로그인</a></div>
         </div>
       </header>
 
