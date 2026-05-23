@@ -671,11 +671,11 @@ export default function DashboardPage() {
             </div>
 
             {selectedDetail && (
-              <div className="absolute top-0 left-0 right-0 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30" style={{ height: '50vh' }}>
+              <div className="absolute top-0 left-0 right-[-15%] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30" style={{ height: '75vh' }}>
                 <div className="p-5 border-b border-slate-100 flex items-start justify-between">
                   <div>
                     <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} {selectedRowMeta ? `/ ${selectedRowMeta.channel} · ${selectedRowMeta.conceptName}` : (selectedDetail.channels ? '/ ' + selectedDetail.channels : '')}</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">{selectedDetail.upload_date}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">승인일: {selectedDetail.scheduled_date || '-'}</p>
                     <div className="flex items-center gap-2 mt-2">
                       {selectedRowMeta
                         ? <RowWorkStatus inq={selectedDetail} channel={selectedRowMeta.channel} rowKey={'detail__' + selectedDetail.id + '__' + selectedRowMeta.channel} />
@@ -708,9 +708,6 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <div className="p-4 border-b border-slate-100">
-                  <MemoSection inq={selectedDetail} />
-                </div>
                 {(selectedDetail.work_status === '컴펌 완료') && (
                   <div className="p-5 border-b border-slate-100 bg-green-50">
                     <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
@@ -721,6 +718,9 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
+                <div className="p-4 border-b border-slate-100">
+                  <MemoSection inq={selectedDetail} />
+                </div>
               </div>
             )}
           </div>
@@ -814,7 +814,7 @@ export default function DashboardPage() {
                         <div className={`text-xs font-semibold mb-1 ${isToday ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{day}</div>
                         <div className="space-y-1">
                           {events.slice(0, 3).map(ev => (
-                            <div key={ev.id} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate" title={ev.brand}>{ev.brand}</div>
+                            <div key={ev.id} onClick={() => { setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200" title={ev.brand}>{ev.brand}</div>
                           ))}
                           {events.length > 3 && <div className="text-[10px] text-slate-400">+{events.length - 3}</div>}
                         </div>
@@ -854,7 +854,7 @@ export default function DashboardPage() {
                             <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
                             <div className="space-y-1.5">
                               {events.map(ev => (
-                                <div key={ev.id} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded" title={ev.brand}>
+                                <div key={ev.id} onClick={() => { setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-200" title={ev.brand}>
                                   <div className="font-semibold truncate">{ev.brand}</div>
                                   <div className="text-[10px] text-blue-500 truncate">{ev.channels || ''}</div>
                                 </div>
