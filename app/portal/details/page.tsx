@@ -69,6 +69,7 @@ export default function PortalDetailsPage() {
         : form.secondary_use;
 
       const updatePayload: Record<string, unknown> = {
+        type: 'ad',
         business_number: form.business_number,
         upload_date: form.upload_date || null,
         material: form.material_none ? '없음' : form.material,
