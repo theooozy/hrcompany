@@ -9,27 +9,15 @@ const supabase = createClient(
 );
 
 const CHANNELS = ['셀럽온', '미모지상주의', '쇼숏', '쇼잉'];
-const SECONDARY_USE_OPTIONS = ['브랜드/아티스트 관련 모두 활용 가능', '동의 안 받음', '기타'];
 
 export default function HomePage() {
   const [formData, setFormData] = useState({
     brand: '',
-    upload_date: '',
     channels: [] as string[],
-    product_link: '',
-    product_link_none: false,
-    material: '',
-    material_none: false,
-    secondary_use: '',
-    secondary_use_custom: '',
-    video_concept: '',
-    extra: '',
     name: '',
     email: '',
     phone: '',
-    business_number: '',
   });
-  const [bankFile, setBankFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -52,38 +40,12 @@ export default function HomePage() {
     e.preventDefault();
     setLoading(true);
     try {
-      let bankImageUrl = '';
-
-      // 통장 사본 이미지 업로드
-      if (bankFile) {
-        const ext = bankFile.name.split('.').pop();
-        const fileName = 'bank_' + Date.now() + '.' + ext;
-        const { error: uploadError } = await supabase.storage
-          .from('inquiry-files')
-          .upload(fileName, bankFile, { upsert: true });
-        if (uploadError) throw new Error('이미지 업로드 실패: ' + uploadError.message);
-        const { data: urlData } = supabase.storage.from('inquiry-files').getPublicUrl(fileName);
-        bankImageUrl = urlData.publicUrl;
-      }
-
-      const secondaryUse = formData.secondary_use === '기타'
-        ? (formData.secondary_use_custom || '기타')
-        : formData.secondary_use;
-
       const { error } = await supabase.from('inquiries').insert([{
         brand: formData.brand,
-        upload_date: formData.upload_date,
         channels: formData.channels.join(', '),
-        product_link: formData.product_link_none ? '없음' : formData.product_link,
-        material: formData.material_none ? '없음' : formData.material,
-        secondary_use: secondaryUse,
-        video_concept: formData.video_concept,
-        extra: formData.extra,
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        business_number: formData.business_number,
-        bank_account_image: bankImageUrl,
         type: 'brand_ad',
         status: 'pending',
       }]);
@@ -100,8 +62,7 @@ export default function HomePage() {
 
   const resetForm = () => {
     setSubmitted(false);
-    setBankFile(null);
-    setFormData({ brand: '', upload_date: '', channels: [], product_link: '', product_link_none: false, material: '', material_none: false, secondary_use: '', secondary_use_custom: '', video_concept: '', extra: '', name: '', email: '', phone: '', business_number: '' });
+    setFormData({ brand: '', channels: [], name: '', email: '', phone: '' });
   };
 
   const ic = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all bg-white";
@@ -212,56 +173,20 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* 2. 사업자 정보 */}
+              {/* 2. 캠페인 기본 정보 */}
               <div className="pb-6 border-b border-slate-100">
-                <SectionTitle n="2" title="사업자 정보" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={lc}>사업자번호</label>
-                    <input type="text" name="business_number" value={formData.business_number} onChange={handleChange} placeholder="예) 123-45-67890" className={ic} />
-                  </div>
-                  <div>
-                    <label className={lc}>통장 사본 <span className="text-xs font-normal text-slate-400">(이미지 첨부)</span></label>
-                    <label className="flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-blue-400 transition-all">
-                      <span className="text-lg">📎</span>
-                      <span className="text-sm text-slate-500 flex-1 truncate">
-                        {bankFile ? bankFile.name : '이미지를 선택해주세요 (JPG, PNG, PDF)'}
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        className="hidden"
-                        onChange={(e) => setBankFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
-                    {bankFile && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-xs text-green-600">✓ {bankFile.name}</span>
-                        <button type="button" onClick={() => setBankFile(null)} className="text-xs text-red-400 hover:text-red-600">삭제</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. 캠페인 기본 정보 */}
-              <div className="pb-6 border-b border-slate-100">
-                <SectionTitle n="3" title="캠페인 기본 정보" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SectionTitle n="2" title="캠페인 기본 정보" />
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className={lc}>브랜드 <span className="text-red-500">*</span></label>
                     <input type="text" name="brand" value={formData.brand} onChange={handleChange} required placeholder="예) 더블랙레이블(태양)" className={ic} />
                   </div>
-                  <div>
-                    <label className={lc}>업로드 일시 <span className="text-red-500">*</span></label>
-                    <input type="date" name="upload_date" value={formData.upload_date} onChange={handleChange} required className={ic} />
                   </div>
-                </div>
               </div>
 
-              {/* 4. 희망 채널 */}
+              {/* 3. 희망 채널 */}
               <div className="pb-6 border-b border-slate-100">
-                <SectionTitle n="4" title="희망 채널" />
+                <SectionTitle n="3" title="희망 채널" />
                 <p className="text-xs text-slate-400 mb-3">복수 선택 가능</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {CHANNELS.map(ch => (
@@ -274,62 +199,6 @@ export default function HomePage() {
                 {formData.channels.length > 0 && (
                   <p className="mt-2 text-xs text-blue-600">선택: {formData.channels.join(', ')}</p>
                 )}
-              </div>
-
-              {/* 5. 소재 정보 */}
-              <div className="pb-6 border-b border-slate-100">
-                <SectionTitle n="5" title="소재 정보" />
-                <div className="space-y-4">
-                  <div>
-                    <label className={lc}>제품 링크</label>
-                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                      <input type="checkbox" name="product_link_none" checked={formData.product_link_none} onChange={handleChange} className="w-4 h-4 accent-blue-600" />
-                      <span className="text-sm text-slate-500">없음 (별도 파일 전달 예정)</span>
-                    </label>
-                    {!formData.product_link_none && (
-                      <input type="text" name="product_link" value={formData.product_link} onChange={handleChange} placeholder="예) https://... 또는 별도 엑셀파일 전달" className={ic} />
-                    )}
-                  </div>
-                  <div>
-                    <label className={lc}>활용 소재</label>
-                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                      <input type="checkbox" name="material_none" checked={formData.material_none} onChange={handleChange} className="w-4 h-4 accent-blue-600" />
-                      <span className="text-sm text-slate-500">없음 (별도 재전달 예정)</span>
-                    </label>
-                    {!formData.material_none && (
-                      <input type="text" name="material" value={formData.material} onChange={handleChange} placeholder="예) 공식계정 IG / YT 온드미디어" className={ic} />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. 추가 정보 */}
-              <div>
-                <SectionTitle n="6" title="추가 정보" />
-                <div className="space-y-4">
-                  <div>
-                    <label className={lc}>2차 활용 여부</label>
-                    <div className="space-y-2">
-                      {SECONDARY_USE_OPTIONS.map(opt => (
-                        <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="secondary_use" value={opt} checked={formData.secondary_use === opt} onChange={handleChange} className="w-4 h-4 accent-blue-600" />
-                          <span className="text-sm text-slate-700">{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {formData.secondary_use === '기타' && (
-                      <textarea name="secondary_use_custom" value={formData.secondary_use_custom} onChange={handleChange} rows={2} placeholder="직접 입력해주세요." className={ic + " resize-none mt-3"} />
-                    )}
-                  </div>
-                  <div>
-                    <label className={lc}>희망 영상 컨셉</label>
-                    <textarea name="video_concept" value={formData.video_concept} onChange={handleChange} rows={2} placeholder="예) 자연스러운 일상 녹여내기" className={ic + " resize-none"} />
-                  </div>
-                  <div>
-                    <label className={lc}>기타 전달 사항</label>
-                    <textarea name="extra" value={formData.extra} onChange={handleChange} rows={2} placeholder="추가 전달 사항을 입력해주세요." className={ic + " resize-none"} />
-                  </div>
-                </div>
               </div>
 
               <button
