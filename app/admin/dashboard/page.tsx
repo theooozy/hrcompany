@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [channelSettings, setChannelSettings] = useState<Record<string, { person_name: string; tts_info: string }>>({});
   const [newChannelName, setNewChannelName] = useState('');
   const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
+  const [inquiryTab, setInquiryTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
   const [openWorkStatusFor, setOpenWorkStatusFor] = useState<string | null>(null);
   const [openWorkTypeFor, setOpenWorkTypeFor] = useState<string | null>(null);
@@ -110,8 +111,27 @@ export default function DashboardPage() {
     if (email === 'tkddl@whrcompany.com') {
       setCurrentRole('master');
     } else {
-      const { data: roleRow } = await supabase.from('user_roles').select('role').eq('user_email', email).maybeSingle();
-      setCurrentRole(roleRow?.role || 'worker');
+      const { data: roleRow } = await supabase.from('user_roles').select('role, status').eq('user_email', email).maybeSingle();
+      if (!roleRow) {
+        await supabase.from('user_roles').insert({ user_email: email, role: 'worker', status: 'pending' });
+        alert('관리자 승인이 필요합니다. 승인이 완료될 때까지 기다려주세요.');
+        await supabase.auth.signOut();
+        router.push('/admin/login');
+        return;
+      }
+      if (roleRow.status === 'pending') {
+        alert('관리자 승인 대기 중입니다.');
+        await supabase.auth.signOut();
+        router.push('/admin/login');
+        return;
+      }
+      if (roleRow.status === 'rejected') {
+        alert('접근이 거부되었습니다.');
+        await supabase.auth.signOut();
+        router.push('/admin/login');
+        return;
+      }
+      setCurrentRole(roleRow.role || 'worker');
     }
   };
 
@@ -225,12 +245,23 @@ export default function DashboardPage() {
   };
 
   const fetchStaff = async () => {
-    const { data } = await supabase.from('user_roles').select('user_email, role').order('user_email');
+    const { data } = await supabase.from('user_roles').select('user_email, role, status').order('user_email');
     setStaffList(data || []);
+  };
+  const handleApproveStaff = async (email: string, role: string) => {
+    const { error } = await supabase.from('user_roles').update({ status: 'approved', role }).eq('user_email', email);
+    if (error) { alert('오류: ' + error.message); return; }
+    fetchStaff();
+  };
+  const handleRejectStaff = async (email: string) => {
+    if (!confirm(email + ' 가입을 거부하시겠습니까?')) return;
+    const { error } = await supabase.from('user_roles').update({ status: 'rejected' }).eq('user_email', email);
+    if (error) { alert('오류: ' + error.message); return; }
+    fetchStaff();
   };
   const handleAddStaff = async (email: string, role: string) => {
     if (!email) return;
-    const { error } = await supabase.from('user_roles').upsert({ user_email: email, role }, { onConflict: 'user_email' });
+    const { error } = await supabase.from('user_roles').upsert({ user_email: email, role, status: 'approved' }, { onConflict: 'user_email' });
     if (error) { alert('오류: ' + error.message); return; }
     setNewStaffEmail('');
     fetchStaff();
@@ -257,6 +288,7 @@ export default function DashboardPage() {
     setNewChannelName('');
   };
   const handleDeleteChannel = async (channel: string) => {
+    if (!canDeletePermanent()) { alert('관리자만 채널을 삭제할 수 있습니다.'); return; }
     if (!confirm(`'${channel}' 채널을 삭제하시겠습니까?`)) return;
     const { error } = await supabase.from('channel_settings').delete().eq('channel', channel);
     if (error) { alert('오류: ' + error.message); return; }
@@ -533,14 +565,37 @@ export default function DashboardPage() {
 
         {activeMenu === 'inquiries' && (
           <div>
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between">
               <div><h1 className="text-2xl font-bold text-slate-800 mb-1">광고 문의</h1><p className="text-slate-500 text-sm">홈페이지에서 접수된 브랜드 광고 문의 목록입니다.</p></div>
               <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
             </div>
+            <div className="flex gap-2 border-b border-slate-200 mb-6">
+              {([
+                { key: 'all', label: '전체' },
+                { key: 'pending', label: '대기중' },
+                { key: 'approved', label: '승인' },
+                { key: 'rejected', label: '거절' },
+              ] as const).map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setInquiryTab(tab.key)}
+                  className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${inquiryTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  {tab.label}
+                  <span className="ml-2 text-xs text-slate-400">
+                    {tab.key === 'all'
+                      ? inquiries.filter(i => i.type === 'ad').length
+                      : tab.key === 'pending'
+                      ? inquiries.filter(i => i.type === 'ad' && i.status !== 'approved' && i.status !== 'rejected').length
+                      : inquiries.filter(i => i.type === 'ad' && i.status === tab.key).length}
+                  </span>
+                </button>
+              ))}
+            </div>
             {loading ? <div className="flex items-center justify-center h-40 text-slate-400">불러오는 중...</div>
-              : inquiries.filter(i => i.type === 'ad').length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
+              : inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (i.status !== 'approved' && i.status !== 'rejected') : i.status === inquiryTab))).length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
               : <div className="space-y-4">
-                {inquiries.filter(i => i.type === 'ad').map((inq) => (
+                {inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (i.status !== 'approved' && i.status !== 'rejected') : i.status === inquiryTab))).map((inq) => (
                   <div key={inq.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50" onClick={() => setExpanded(expanded === inq.id ? null : inq.id)}>
                       <div className="flex items-center gap-4">
@@ -875,15 +930,30 @@ export default function DashboardPage() {
                   {staffList.map((s) => (
                     <div key={s.user_email} className="px-6 py-4 flex items-center justify-between">
                       <div>
-                        <div className="text-sm font-semibold text-slate-800">{s.user_email}</div>
+                        <div className="text-sm font-semibold text-slate-800 flex items-center gap-2">{s.user_email}
+                          {s.status === 'pending' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
+                          {s.status === 'rejected' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">거부됨</span>}
+                          {(!s.status || s.status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">승인됨</span>}
+                        </div>
                         <div className="text-xs text-slate-400 mt-0.5">{s.role === 'admin' ? '관리자' : s.role === 'mid' ? '중간 관리자' : '작업자'}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <select value={s.role} onChange={(e) => handleAddStaff(s.user_email, e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
+                        {s.status === 'pending' && (
+                          <>
+                            <select defaultValue="worker" onChange={(e) => (s as { pendingRole?: string }).pendingRole = e.target.value} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
+                              <option value="admin">관리자</option>
+                              <option value="mid">중간 관리자</option>
+                              <option value="worker">작업자</option>
+                            </select>
+                            <button onClick={() => handleApproveStaff(s.user_email, (s as { pendingRole?: string }).pendingRole || 'worker')} className="px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold">승인</button>
+                            <button onClick={() => handleRejectStaff(s.user_email)} className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold">거부</button>
+                          </>
+                        )}
+                        {s.status !== 'pending' && (<select value={s.role} onChange={(e) => handleAddStaff(s.user_email, e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
                           <option value="admin">관리자</option>
                           <option value="mid">중간 관리자</option>
                           <option value="worker">작업자</option>
-                        </select>
+                        </select>)}
                         <button onClick={() => handleRemoveStaff(s.user_email)} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-100">삭제</button>
                       </div>
                     </div>
@@ -933,7 +1003,7 @@ export default function DashboardPage() {
                       <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                     </div>
                     <div className="col-span-1 text-right">
-                      <button onClick={() => handleDeleteChannel(ch)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>
+                      {canDeletePermanent() && (<button onClick={() => handleDeleteChannel(ch)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>)}
                     </div>
                   </div>
                 );
