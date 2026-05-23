@@ -68,70 +68,89 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-6xl mx-auto px-6 py-20 text-center">
-        <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-          <span>✨</span>
-          <span>브랜드 광고 전문 파트너</span>
+      <section className="max-w-6xl mx-auto px-6 py-24 text-center">
+        <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-10">
+          <span>✦</span>
+          <span>디지털 콘텐츠 마케팅 파트너</span>
         </div>
-        <h1 className="text-5xl font-bold text-slate-800 mb-6 leading-tight">
-          브랜드의 가치를<br />
+
+        <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
+          우리는 광고대행사가
+          <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-            더 높이 올려드립니다
+            아닙니다.
           </span>
         </h1>
-        <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto leading-relaxed">
-          HR Company는 브랜드 광고 기획부터 실행까지 전문적인 마케팅 솔루션을 제공합니다.
-          귀사의 브랜드 성장을 함께 만들어 나갑니다.
-        </p>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <a
-            href="#inquiry"
-            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-800 transition-all"
-          >
-            브랜드 광고 문의하기
-          </a>
-          <a
-            href="#services"
-            className="px-8 py-4 bg-white text-slate-700 rounded-xl font-semibold text-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
-          >
-            서비스 보기
-          </a>
+
+        <div className="max-w-3xl mx-auto mb-10 space-y-4 text-left bg-white/70 rounded-2xl p-8 border border-blue-100 shadow-sm">
+          <p className="text-slate-700 text-lg leading-relaxed">
+            우리는 <strong className="text-slate-900">49개의 자체 숏폼 채널,
+            500만 구독자, 월 15억 조회수</strong> 규모의 자체 트래픽을 바탕으로
+            기획부터 제작, 집행까지 모든 광고 과정을 직접 실행합니다.
+          </p>
+          <p className="text-slate-600 text-base leading-relaxed">
+            브랜드가 유저에게 자연스럽게 스며드는 콘텐츠를 만들고,
+            콘텐츠를 통해 브랜드 가치를 극대화하는
+            <strong className="text-blue-700"> 디지털 콘텐츠 마케팅 파트너</strong>입니다.
+          </p>
+        </div>
+
+        <a
+          href="#inquiry"
+          className="inline-block px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-800 transition-all"
+        >
+          브랜드 광고 문의하기 →
+        </a>
+      </section>
+
+      {/* Differentiators Section */}
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-slate-800 mb-3">핵심 차별점</h2>
+          <p className="text-slate-500 text-lg">왜 HR Company인가요?</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-5">
+              <span className="text-2xl font-bold text-blue-600">1</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-3">영업 없이 콘텐츠에 집중</h3>
+            <p className="text-slate-500 leading-relaxed">오직 콘텐츠 본질과 광고 성과에만 집중합니다. 불필요한 영업 비용 없이 순수하게 결과로 증명합니다.</p>
+          </div>
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
+            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center mb-5">
+              <span className="text-2xl font-bold text-indigo-600">2</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-3">외주 없이 인하우스로 제작</h3>
+            <p className="text-slate-500 leading-relaxed">기획·촬영·편집 모두 내부 팀이 직접 진행합니다. 일관된 퀄리티와 빠른 피드백이 가능합니다.</p>
+          </div>
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
+            <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-5">
+              <span className="text-2xl font-bold text-sky-600">3</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-3">모든 과정을 직접 제작</h3>
+            <p className="text-slate-500 leading-relaxed">콘텐츠 기획부터 집행까지 전 과정을 직접 수행하여 품질을 보장하고 책임 있는 결과를 만들어냅니다.</p>
+          </div>
         </div>
       </section>
 
-      {/* Services Section */}
-      <section id="services" className="max-w-6xl mx-auto px-6 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-slate-800 mb-4">주요 서비스</h2>
-          <p className="text-slate-500 text-lg">브랜드 성장을 위한 맞춤형 솔루션</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            {
-              icon: '📢',
-              title: '브랜드 광고 기획',
-              desc: '타겟 분석부터 크리에이티브 전략까지 브랜드에 최적화된 광고를 기획합니다.',
-            },
-            {
-              icon: '📊',
-              title: '디지털 마케팅',
-              desc: 'SNS, 검색광고, 디스플레이 광고 등 다양한 채널을 통한 효과적인 마케팅을 실행합니다.',
-            },
-            {
-              icon: '🎯',
-              title: '퍼포먼스 분석',
-              desc: '데이터 기반 성과 분석으로 광고 효율을 지속적으로 최적화합니다.',
-            },
-          ].map((service) => (
-            <div
-              key={service.title}
-              className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all"
-            >
-              <div className="text-4xl mb-4">{service.icon}</div>
-              <h3 className="text-xl font-bold text-slate-800 mb-3">{service.title}</h3>
-              <p className="text-slate-500 leading-relaxed">{service.desc}</p>
+      {/* Stats Section */}
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-10 text-white">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            <div>
+              <div className="text-5xl font-bold mb-2">49개</div>
+              <div className="text-blue-200 text-lg">자체 숏폼 채널</div>
             </div>
-          ))}
+            <div>
+              <div className="text-5xl font-bold mb-2">500만</div>
+              <div className="text-blue-200 text-lg">구독자</div>
+            </div>
+            <div>
+              <div className="text-5xl font-bold mb-2">15억</div>
+              <div className="text-blue-200 text-lg">월 조회수</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -238,7 +257,7 @@ export default function HomePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold text-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? '제출 중...' : '문의 제출하기'}
               </button>
@@ -248,7 +267,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-100 mt-16">
+      <footer className="bg-white border-t border-slate-100 mt-8">
         <div className="max-w-6xl mx-auto px-6 py-10 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center">
