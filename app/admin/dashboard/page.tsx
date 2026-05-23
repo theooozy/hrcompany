@@ -4,115 +4,169 @@ import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
-export default function AdminDashboardPage() {
-  const [requests, setRequests] = useState<any[]>([])
-  const [notes, setNotes] = useState<{[key: string]: string}>({})
-  const [filter, setFilter] = useState('pending')
-  const [openRequests, setOpenRequests] = useState(true)
-  const router = useRouter()
+export default function AdminDashboard() {
+    const [inquiries, setInquiries] = useState<any[]>([])
+    const [brandRequests, setBrandRequests] = useState<any[]>([])
+    const [tab, setTab] = useState<'inquiries' | 'requests'>('inquiries')
+    const [loading, setLoading] = useState(true)
+    const router = useRouter()
 
   useEffect(() => {
-    const checkLogin = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/admin/login'); return }
-      fetchRequests()
-    }
-    checkLogin()
+        const init = async () => {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) { router.push('/admin/login'); return }
+                fetchData()
+        }
+        init()
   }, [])
 
-  const fetchRequests = async () => {
-    const { data } = await supabase.from('brand_requests').select('*').order('created_at', { ascending: false })
-    setRequests(data || [])
+  const fetchData = async () => {
+        setLoading(true)
+        const { data: inq } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false })
+        const { data: req } = await supabase.from('brand_requests').select('*').order('created_at', { ascending: false })
+        setInquiries(inq || [])
+        setBrandRequests(req || [])
+        setLoading(false)
   }
 
-  const updateStatus = async (id: string, status: string) => {
-    await supabase.from('brand_requests').update({ status, admin_note: notes[id] || '' }).eq('id', id)
-    fetchRequests()
+  const handleLogout = async () => {
+        await supabase.auth.signOut()
+        router.push('/')
   }
 
-  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/') }
-
-  const filtered = requests.filter(r => r.status === filter)
-  const pendingCount = requests.filter(r => r.status === 'pending').length
-  const approvedCount = requests.filter(r => r.status === 'approved').length
-
-  const statusBadge = (status: string) => {
-    if (status === 'pending') return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">⏳ 검토중</span>
-    if (status === 'approved') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">✅ 승인됨</span>
-    if (status === 'rejected') return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">❌ 반려됨</span>
+  const formatDate = (str: string) => {
+        if (!str) return ''
+        return new Date(str).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 bg-white shadow-md flex flex-col p-4">
-        <h1 className="text-lg font-bold mb-6 text-gray-800">관리자 메뉴</h1>
-        <nav className="flex flex-col gap-1 flex-1">
-          <button onClick={() => setOpenRequests(!openRequests)}
-            className="text-left px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-100 flex justify-between">
-            <span>📋 요청 관리</span><span>{openRequests ? '▲' : '▼'}</span>
-          </button>
-          {openRequests && (
-            <div className="ml-3 flex flex-col gap-1">
-              <button onClick={() => setFilter('pending')}
-                className={`text-left px-4 py-2 rounded-lg text-sm flex justify-between ${filter === 'pending' ? 'bg-yellow-50 text-yellow-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}>
-                <span>⏳ 검토중</span><span className="text-xs bg-yellow-100 text-yellow-700 rounded-full px-2">{pendingCount}</span>
-              </button>
-              <button onClick={() => setFilter('approved')}
-                className={`text-left px-4 py-2 rounded-lg text-sm flex justify-between ${filter === 'approved' ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}>
-                <span>✅ 승인</span><span className="text-xs bg-green-100 text-green-700 rounded-full px-2">{approvedCount}</span>
-              </button>
-            </div>
-          )}
-          <button onClick={() => router.push('/admin/schedule')}
-            className="text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 mt-1">
-            📊 스케줄표
-          </button>
-          <button onClick={() => router.push('/admin/calendar')}
-            className="text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
-            📅 캘린더
-          </button>
-        </nav>
-        <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600 mt-4">로그아웃</button>
-      </aside>
-
-      <main className="flex-1 p-8">
-        <h2 className="text-2xl font-bold mb-6">{filter === 'pending' ? '⏳ 검토중 요청' : '✅ 승인된 요청'}</h2>
-        <div className="flex flex-col gap-4 max-w-2xl">
-          {filtered.map((req) => (
-            <div key={req.id} className="bg-white rounded-xl shadow p-5">
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-semibold text-lg">{req.company_name || req.brand_name}</span>
-                {statusBadge(req.status)}
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                <p>📧 {req.email}</p>
-                <p>👤 {req.manager_name}</p>
-                <p>📞 {req.manager_phone}</p>
-                <p>🏢 {req.business_number}</p>
-                <p>📱 {req.channel}</p>
-              </div>
-              {req.bank_image && (
-                <div className="mb-3">
-                  <p className="text-sm text-gray-500 mb-1">🏦 통장 사본</p>
-                  <img src={req.bank_image} alt="통장사본" className="max-h-40 rounded-lg border object-contain" />
-                </div>
-              )}
-              <input type="text" placeholder="관리자 메모 (선택)"
-                value={notes[req.id] || ''} onChange={(e) => setNotes({ ...notes, [req.id]: e.target.value })}
-                className="border rounded-lg px-3 py-1 text-sm w-full mb-3" />
-              <div className="flex gap-2">
-                <button onClick={() => updateStatus(req.id, 'approved')} className="bg-green-500 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-green-600">✅ 승인</button>
-                <button onClick={() => updateStatus(req.id, 'rejected')} className="bg-red-400 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-red-500">❌ 반려</button>
-              </div>
-            </div>
-          ))}
-          {filtered.length === 0 && <div className="text-center py-16 text-gray-400"><p className="text-4xl mb-3">📭</p><p>요청이 없어요.</p></div>}
-        </div>
-      </main>
-    </div>
-  )
-}
+        <div className="min-h-screen bg-gray-50">
+              <header className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+                      <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow">
+                                            <span className="text-white font-black text-sm">HR</span>span>
+                                </div>div>
+                                <span className="font-bold text-gray-900 text-lg">관리자 대시보드</span>span>
+                      </div>div>
+                      <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-red-500 font-medium transition-colors px-4 py-2 rounded-lg hover:bg-red-50">
+                                로그아웃
+                      </button>button>
+              </header>header>
+        
+              <div className="max-w-5xl mx-auto px-6 py-8">
+                      <div className="flex gap-2 mb-8 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit">
+                                <button onClick={() => setTab('inquiries')}
+                                              className={"px-6 py-2.5 rounded-xl text-sm font-semibold transition-all " + (tab === 'inquiries' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-700')}>
+                                            📩 브랜드 광고 문의
+                                  {inquiries.length > 0 && <span className="ml-2 bg-white/20 text-xs px-2 py-0.5 rounded-full">{inquiries.length}</span>span>}
+                                </button>button>
+                                <button onClick={() => setTab('requests')}
+                                              className={"px-6 py-2.5 rounded-xl text-sm font-semibold transition-all " + (tab === 'requests' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md' : 'text-gray-500 hover:text-gray-700')}>
+                                            📋 브랜드 요청
+                                  {brandRequests.length > 0 && <span className="ml-2 bg-white/20 text-xs px-2 py-0.5 rounded-full">{brandRequests.length}</span>span>}
+                                </button>button>
+                      </div>div>
+              
+                {loading ? (
+                    <div className="text-center py-20 text-gray-400">
+                                <div className="text-4xl mb-3">⏳</div>div>
+                                <p>불러오는 중...</p>p>
+                    </div>div>
+                  ) : (
+                    <>
+                      {tab === 'inquiries' && (
+                                    <div>
+                                                    <h2 className="text-xl font-bold text-gray-900 mb-5">
+                                                                      브랜드 광고 문의 <span className="text-gray-400 font-normal text-base ml-1">총 {inquiries.length}건</span>span>
+                                                    </h2>h2>
+                                      {inquiries.length === 0 ? (
+                                                        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
+                                                                            <p className="text-5xl mb-4">📭</p>p>
+                                                                            <p className="text-gray-500 font-medium">아직 문의가 없어요</p>p>
+                                                                            <p className="text-gray-400 text-sm mt-1">홈페이지에서 문의가 들어오면 여기에 표시됩니다</p>p>
+                                                        </div>div>
+                                                      ) : (
+                                                        <div className="flex flex-col gap-4">
+                                                          {inquiries.map((inq) => (
+                                                                                <div key={inq.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow">
+                                                                                                        <div className="flex justify-between items-start mb-4">
+                                                                                                                                  <div>
+                                                                                                                                                              <h3 className="font-bold text-gray-900 text-lg">{inq.company || inq.company_name || '(회사명 없음)'}</h3>h3>
+                                                                                                                                                              <p className="text-gray-400 text-sm mt-0.5">{formatDate(inq.created_at)}</p>p>
+                                                                                                                                    </div>div>
+                                                                                                                                  <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-3 py-1.5 rounded-full border border-blue-100">신규 문의</span>span>
+                                                                                                          </div>div>
+                                                                                                        <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                                                                                                                                  <div className="bg-gray-50 rounded-xl p-3">
+                                                                                                                                                              <p className="text-gray-400 text-xs mb-0.5">담당자</p>p>
+                                                                                                                                                              <p className="text-gray-800 font-medium">{inq.name || '-'}</p>p>
+                                                                                                                                    </div>div>
+                                                                                                                                  <div className="bg-gray-50 rounded-xl p-3">
+                                                                                                                                                              <p className="text-gray-400 text-xs mb-0.5">연락처</p>p>
+                                                                                                                                                              <p className="text-gray-800 font-medium">{inq.phone || '-'}</p>p>
+                                                                                                                                    </div>div>
+                                                                                                                                  <div className="bg-gray-50 rounded-xl p-3 col-span-2">
+                                                                                                                                                              <p className="text-gray-400 text-xs mb-0.5">이메일</p>p>
+                                                                                                                                                              <p className="text-gray-800 font-medium">{inq.email || '-'}</p>p>
+                                                                                                                                    </div>div>
+                                                                                                          </div>div>
+                                                                                  {inq.message && (
+                                                                                                            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                                                                                                                                        <p className="text-gray-400 text-xs mb-1">문의 내용</p>p>
+                                                                                                                                        <p className="text-gray-700 text-sm leading-relaxed">{inq.message}</p>p>
+                                                                                                              </div>div>
+                                                                                                        )}
+                                                                                  </div>div>
+                                                                              ))}
+                                                        </div>div>
+                                                    )}
+                                    </div>div>
+                                )}
+                    
+                      {tab === 'requests' && (
+                                    <div>
+                                                    <h2 className="text-xl font-bold text-gray-900 mb-5">
+                                                                      브랜드 요청 <span className="text-gray-400 font-normal text-base ml-1">총 {brandRequests.length}건</span>span>
+                                                    </h2>h2>
+                                      {brandRequests.length === 0 ? (
+                                                        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
+                                                                            <p className="text-5xl mb-4">📭</p>p>
+                                                                            <p className="text-gray-500 font-medium">아직 요청이 없어요</p>p>
+                                                        </div>div>
+                                                      ) : (
+                                                        <div className="flex flex-col gap-4">
+                                                          {brandRequests.map((req) => (
+                                                                                <div key={req.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                                                                                        <div className="flex justify-between items-start mb-4">
+                                                                                                                                  <h3 className="font-bold text-gray-900 text-lg">{req.company_name || req.brand_name || '(이름 없음)'}</h3>h3>
+                                                                                                                                  <span className={"text-xs font-semibold px-3 py-1.5 rounded-full border " + (req.status === 'approved' ? 'bg-green-50 text-green-600 border-green-100' : req.status === 'rejected' ? 'bg-red-50 text-red-500 border-red-100' : 'bg-yellow-50 text-yellow-600 border-yellow-100')}>
+                                                                                                                                    {req.status === 'approved' ? '✅ 승인' : req.status === 'rejected' ? '❌ 반려' : '⏳ 검토중'}
+                                                                                                                                    </span>span>
+                                                                                                          </div>div>
+                                                                                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                                                                                                                  <div className="bg-gray-50 rounded-xl p-3">
+                                                                                                                                                              <p className="text-gray-400 text-xs mb-0.5">이메일</p>p>
+                                                                                                                                                              <p className="text-gray-800 font-medium">{req.email || '-'}</p>p>
+                                                                                                                                    </div>div>
+                                                                                                                                  <div className="bg-gray-50 rounded-xl p-3">
+                                                                                                                                                              <p className="text-gray-400 text-xs mb-0.5">담당자</p>p>
+                                                                                                                                                              <p className="text-gray-800 font-medium">{req.manager_name || '-'}</p>p>
+                                                                                                                                    </div>div>
+                                                                                                          </div>div>
+                                                                                                        <p className="text-gray-400 text-xs mt-3">{formatDate(req.created_at)}</p>p>
+                                                                                  </div>div>
+                                                                              ))}
+                                                        </div>div>
+                                                    )}
+                                    </div>div>
+                                )}
+                    </>>
+                  )}
+              </div>div>
+        </div>div>
+      )
+}</></div>
