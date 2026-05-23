@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -8,6 +8,21 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+const WORK_STATUSES = [
+  { label: '시작 전', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' },
+  { label: '수정 필요', color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
+  { label: '진행 중', color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-400' },
+  { label: '콘티 컴펌 중', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
+  { label: '영상 컴펌 중', color: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-400' },
+  { label: '컴펌 완료', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+  { label: '영상 완료', color: 'bg-teal-100 text-teal-700', dot: 'bg-teal-400' },
+  { label: '콘티 완료', color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
+  { label: '보류', color: 'bg-red-100 text-red-500', dot: 'bg-red-400' },
+  { label: '취소', color: 'bg-red-100 text-red-700', dot: 'bg-red-600' },
+];
+
+const WORK_TYPES = ['콘티', '영상'];
 
 type Inquiry = {
   id: string;
@@ -30,14 +45,9 @@ type Inquiry = {
   business_number?: string;
   bank_account_image?: string;
   number?: number;
-};
-
-type Comment = {
-  id: string;
-  inquiry_id: string;
-  author: string;
-  content: string;
-  created_at: string;
+  memo?: string;
+  work_status?: string;
+  work_type?: string;
 };
 
 export default function DashboardPage() {
@@ -49,14 +59,12 @@ export default function DashboardPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDetail, setSelectedDetail] = useState<Inquiry | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [commentAuthor, setCommentAuthor] = useState('');
   const [ytInputs, setYtInputs] = useState<Record<string, string>>({});
-  const [submittingComment, setSubmittingComment] = useState(false);
+  const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
+  const [memoValues, setMemoValues] = useState<Record<string, string>>({});
+  const [savingMemo, setSavingMemo] = useState<string | null>(null);
 
   useEffect(() => { checkAuth(); fetchInquiries(); }, []);
-  useEffect(() => { if (selectedDetail) fetchComments(selectedDetail.id); }, [selectedDetail]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -68,11 +76,6 @@ export default function DashboardPage() {
     const { data, error } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false });
     if (!error && data) setInquiries(data);
     setLoading(false);
-  };
-
-  const fetchComments = async (inquiryId: string) => {
-    const { data } = await supabase.from('inquiry_comments').select('*').eq('inquiry_id', inquiryId).order('created_at', { ascending: true });
-    if (data) setComments(data);
   };
 
   const handleApprove = async (inquiry: Inquiry) => {
@@ -99,14 +102,32 @@ export default function DashboardPage() {
     } else alert('오류: ' + error.message);
   };
 
-  const handleSubmitComment = async () => {
-    if (!newComment.trim() || !commentAuthor.trim()) { alert('작성자와 댓글을 모두 입력해주세요.'); return; }
-    if (!selectedDetail) return;
-    setSubmittingComment(true);
-    const { error } = await supabase.from('inquiry_comments').insert([{ inquiry_id: selectedDetail.id, author: commentAuthor, content: newComment }]);
-    if (!error) { setNewComment(''); fetchComments(selectedDetail.id); }
-    else alert('댓글 오류: ' + error.message);
-    setSubmittingComment(false);
+  const handleWorkStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from('inquiries').update({ work_status: status }).eq('id', id);
+    if (!error) {
+      setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_status: status } : i));
+      if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, work_status: status } : null);
+    }
+    setStatusDropdown(null);
+  };
+
+  const handleWorkType = async (id: string, wtype: string) => {
+    const { error } = await supabase.from('inquiries').update({ work_type: wtype }).eq('id', id);
+    if (!error) {
+      setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_type: wtype } : i));
+      if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, work_type: wtype } : null);
+    }
+  };
+
+  const handleSaveMemo = async (id: string) => {
+    setSavingMemo(id);
+    const memo = memoValues[id] ?? '';
+    const { error } = await supabase.from('inquiries').update({ memo }).eq('id', id);
+    if (!error) {
+      setInquiries(prev => prev.map(i => i.id === id ? { ...i, memo } : i));
+      if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, memo } : null);
+    }
+    setSavingMemo(null);
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/admin/login'); };
@@ -126,6 +147,72 @@ export default function DashboardPage() {
     return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">대기중</span>;
   };
 
+  const getWorkStatusStyle = (ws: string) => WORK_STATUSES.find(s => s.label === ws) || WORK_STATUSES[0];
+
+  const WorkStatusBadge = ({ inq }: { inq: Inquiry }) => {
+    const ws = inq.work_status || '시작 전';
+    const st = getWorkStatusStyle(ws);
+    return (
+      <div className="relative">
+        <button
+          onClick={(e) => { e.stopPropagation(); setStatusDropdown(statusDropdown === inq.id ? null : inq.id); }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${st.color} hover:opacity-80 transition-all`}
+        >
+          <span className={`w-2 h-2 rounded-full ${st.dot}`}></span>
+          {ws}
+          <span className="text-xs opacity-60">▾</span>
+        </button>
+        {statusDropdown === inq.id && (
+          <div className="absolute left-0 top-8 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 w-44 space-y-1" onClick={(e) => e.stopPropagation()}>
+            <p className="text-xs text-slate-400 font-semibold mb-2 px-1">상태 선택</p>
+            {WORK_STATUSES.map(s => (
+              <button key={s.label} onClick={() => handleWorkStatus(inq.id, s.label)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}>
+                <span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const WorkTypeBadge = ({ inq }: { inq: Inquiry }) => {
+    const wt = inq.work_type || '콘티';
+    return (
+      <div className="flex gap-1">
+        {WORK_TYPES.map(t => (
+          <button key={t} onClick={(e) => { e.stopPropagation(); handleWorkType(inq.id, t); }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${wt === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const MemoSection = ({ inq }: { inq: Inquiry }) => {
+    const currentMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
+    return (
+      <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+        <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
+        <textarea
+          value={currentMemo}
+          onChange={(e) => setMemoValues(prev => ({ ...prev, [inq.id]: e.target.value }))}
+          rows={3}
+          placeholder="메모를 입력하세요..."
+          className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white"
+        />
+        <button
+          onClick={() => handleSaveMemo(inq.id)}
+          disabled={savingMemo === inq.id}
+          className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
+        >
+          {savingMemo === inq.id ? '저장 중...' : '메모 저장'}
+        </button>
+      </div>
+    );
+  };
+
   const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
   const pendingCount = inquiries.filter(i => i.status === 'pending').length;
   const approvedInquiries = inquiries.filter(i => i.status === 'approved');
@@ -136,7 +223,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex" onClick={() => setStatusDropdown(null)}>
       <aside className="w-56 bg-white border-r border-slate-200 flex flex-col fixed h-full z-10">
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -163,6 +250,7 @@ export default function DashboardPage() {
       </aside>
 
       <main className="flex-1 ml-56 p-8">
+
         {activeMenu === 'inquiries' && (
           <div>
             <div className="mb-8 flex items-center justify-between">
@@ -178,8 +266,11 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg shrink-0">📢</div>
                         <div>
-                          <div className="flex items-center gap-2 mb-0.5"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span>{statusBadge(inq.status)}</div>
-                          <div className="text-xs text-slate-400">{inq.name} · {inq.email} · {formatDateTime(inq.created_at)}</div>
+                          <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span>{statusBadge(inq.status)}</div>
+                          <div className="flex items-center gap-2">
+                            <WorkStatusBadge inq={inq} />
+                            <WorkTypeBadge inq={inq} />
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -188,8 +279,8 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     {expanded === inq.id && (
-                      <div className="border-t border-slate-100 p-5">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mb-5 bg-slate-50 rounded-xl p-4">
+                      <div className="border-t border-slate-100 p-5 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 bg-slate-50 rounded-xl p-4">
                           <InfoRow label="브랜드" value={inq.brand} />
                           <InfoRow label="업로드 일시" value={inq.upload_date} />
                           <InfoRow label="희망 채널" value={inq.channels} />
@@ -202,6 +293,7 @@ export default function DashboardPage() {
                           <InfoRow label="이메일" value={inq.email} />
                           <InfoRow label="사업자번호" value={inq.business_number} />
                         </div>
+                        <MemoSection inq={inq} />
                         {inq.status === 'pending' && (
                           <div className="flex items-center gap-3 flex-wrap">
                             <input type="date" value={selectedDates[inq.id] || ''} onChange={(e) => setSelectedDates({ ...selectedDates, [inq.id]: e.target.value })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -209,9 +301,9 @@ export default function DashboardPage() {
                             <button onClick={() => handleReject(inq.id)} className="px-5 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold">✕ 거절</button>
                           </div>
                         )}
-                        {inq.status === 'approved' && (
-                          <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-100">
-                            <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록 (컨펌 완료 후)</p>
+                        {(inq.work_status === '컴펌 완료') && (
+                          <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                            <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
                             {inq.youtube_url && <div className="mb-2"><a href={inq.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-sm underline">{inq.youtube_url}</a></div>}
                             <div className="flex gap-2">
                               <input type="url" placeholder="https://youtube.com/watch?v=..." value={ytInputs[inq.id] ?? (inq.youtube_url || '')} onChange={(e) => setYtInputs({ ...ytInputs, [inq.id]: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
@@ -239,7 +331,7 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      {['번호', '브랜드', '채널', '담당자', '업로드일', '상태', '유튜브'].map(h => (
+                      {['번호', '브랜드', '채널', '담당자', '작업', '상태', '작업타입', '유튜브'].map(h => (
                         <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -247,20 +339,25 @@ export default function DashboardPage() {
                   <tbody>
                     {approvedInquiries.map((inq, idx) => (
                       <tr key={inq.id} onClick={() => setSelectedDetail(inq)} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
-                        <td className="px-3 py-3 text-slate-400 text-xs">{idx + 1}</td>
-                        <td className="px-3 py-3 font-medium text-slate-800 whitespace-nowrap max-w-[160px] truncate">{inq.brand || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600 text-xs max-w-[120px] truncate">{inq.channels || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600 text-xs whitespace-nowrap">{inq.upload_date || '-'}</td>
-                        <td className="px-3 py-3">{statusBadge(inq.status)}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2 text-slate-400 text-xs">{idx + 1}</td>
+                        <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
+                        <td className="px-3 py-2 text-slate-600 text-xs max-w-[100px] truncate">{inq.channels || '-'}</td>
+                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <WorkStatusBadge inq={inq} />
+                        </td>
+                        <td className="px-3 py-2">{statusBadge(inq.status)}</td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <WorkTypeBadge inq={inq} />
+                        </td>
+                        <td className="px-3 py-2">
                           {inq.youtube_url
                             ? <a href={inq.youtube_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-red-500 text-xs font-semibold hover:underline">▶ YT</a>
                             : <span className="text-slate-300 text-xs">-</span>}
                         </td>
                       </tr>
                     ))}
-                    {approvedInquiries.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">승인된 문의가 없습니다.</td></tr>}
+                    {approvedInquiries.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">승인된 문의가 없습니다.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -272,6 +369,10 @@ export default function DashboardPage() {
                   <div>
                     <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} / {selectedDetail.channels || '-'}</h2>
                     <p className="text-xs text-slate-400 mt-0.5">{selectedDetail.upload_date}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <WorkStatusBadge inq={selectedDetail} />
+                      <WorkTypeBadge inq={selectedDetail} />
+                    </div>
                   </div>
                   <button onClick={() => setSelectedDetail(null)} className="text-slate-400 hover:text-slate-600 text-xl ml-2 shrink-0">×</button>
                 </div>
@@ -296,7 +397,10 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                {selectedDetail.status === 'approved' && (
+                <div className="p-4 border-b border-slate-100">
+                  <MemoSection inq={selectedDetail} />
+                </div>
+                {(selectedDetail.work_status === '컴펌 완료') && (
                   <div className="p-5 border-b border-slate-100 bg-green-50">
                     <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
                     {selectedDetail.youtube_url && <div className="mb-2"><a href={selectedDetail.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-xs underline break-all">{selectedDetail.youtube_url}</a></div>}
@@ -306,30 +410,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-slate-700 mb-3">💬 댓글</h3>
-                  <div className="space-y-3 mb-4 max-h-52 overflow-y-auto">
-                    {comments.length === 0
-                      ? <p className="text-xs text-slate-400">아직 댓글이 없습니다.</p>
-                      : comments.map(c => (
-                        <div key={c.id} className="bg-slate-50 rounded-xl p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-700">{c.author}</span>
-                            <span className="text-xs text-slate-400">{new Date(c.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.content}</p>
-                        </div>
-                      ))
-                    }
-                  </div>
-                  <div className="space-y-2">
-                    <input type="text" placeholder="작성자 이름" value={commentAuthor} onChange={(e) => setCommentAuthor(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                    <textarea placeholder="댓글을 입력하세요..." value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
-                    <button onClick={handleSubmitComment} disabled={submittingComment} className="w-full py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
-                      {submittingComment ? '저장 중...' : '댓글 등록'}
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
           </div>
