@@ -67,6 +67,7 @@ export default function DashboardPage() {
   const [staffList, setStaffList] = useState<Array<{ user_email: string; role: string }>>([]);
   const [newStaffEmail, setNewStaffEmail] = useState<string>('');
   const [channelSettings, setChannelSettings] = useState<Record<string, { person_name: string; tts_info: string }>>({});
+  const [newChannelName, setNewChannelName] = useState('');
   const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
   const [openWorkStatusFor, setOpenWorkStatusFor] = useState<string | null>(null);
@@ -245,6 +246,21 @@ export default function DashboardPage() {
     const map: Record<string, { person_name: string; tts_info: string }> = {};
     (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '' }; });
     setChannelSettings(map);
+  };
+  const handleAddChannel = async () => {
+    const name = newChannelName.trim();
+    if (!name) return;
+    if (channelSettings[name]) { alert('이미 있는 채널입니다.'); return; }
+    const { error } = await supabase.from('channel_settings').insert({ channel: name, person_name: '', tts_info: '' });
+    if (error) { alert('오류: ' + error.message); return; }
+    setChannelSettings(prev => ({ ...prev, [name]: { person_name: '', tts_info: '' } }));
+    setNewChannelName('');
+  };
+  const handleDeleteChannel = async (channel: string) => {
+    if (!confirm(`'${channel}' 채널을 삭제하시겠습니까?`)) return;
+    const { error } = await supabase.from('channel_settings').delete().eq('channel', channel);
+    if (error) { alert('오류: ' + error.message); return; }
+    setChannelSettings(prev => { const next = { ...prev }; delete next[channel]; return next; });
   };
   const handleSaveChannelSetting = async (channel: string, person_name: string, tts_info: string) => {
     const { error } = await supabase.from('channel_settings').upsert({ channel, person_name, tts_info }, { onConflict: 'channel' });
@@ -674,7 +690,7 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브', ''].map(h => (
+                      {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브'].map(h => (
                         <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -716,9 +732,6 @@ export default function DashboardPage() {
                           {inq.youtube_url
                             ? <a href={inq.youtube_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-red-500 text-xs font-semibold hover:underline">▶ YT</a>
                             : <span className="text-slate-300 text-xs">-</span>}
-                        </td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => handleDelete(inq.id, '표 보기')} className="text-slate-500 hover:text-red-500 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50">삭제</button>
                         </td>
                       </tr>
                       );
@@ -882,30 +895,53 @@ export default function DashboardPage() {
         )}
         {activeMenu === 'channels' && (
           <div>
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-800 mb-1">🎤 채널 설정</h1>
-              <p className="text-slate-500 text-sm">채널별 담당자와 TTS 설정을 관리하세요.</p>
+            <div className="mb-8 flex items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800 mb-1">🎤 채널 설정</h1>
+                <p className="text-slate-500 text-sm">채널별 담당자와 TTS 설정을 관리하세요.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { handleAddChannel(); } }}
+                  placeholder="새 채널 이름"
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+                <button onClick={handleAddChannel} className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold shadow-sm transition-all">+ 추가</button>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {['셀럽온', '미모지상주의', '쇼숏', '쇼잉'].map((ch) => {
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500">
+                <div className="col-span-3">채널</div>
+                <div className="col-span-4">담당자 이름</div>
+                <div className="col-span-4">TTS</div>
+                <div className="col-span-1 text-right">삭제</div>
+              </div>
+              {Object.keys(channelSettings).sort((a, b) => a.localeCompare(b, 'ko')).map((ch) => {
                 const cur = channelSettings[ch] || { person_name: '', tts_info: '' };
                 return (
-                  <div key={ch} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                    <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-400"></span>{ch}</h2>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-slate-500 mb-1 block">담당자 이름</label>
-                        <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-slate-500 mb-1 block">TTS</label>
-                        <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-2">입력 후 다른 곳을 클릭하면 자동 저장됩니다.</p>
+                  <div key={ch} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50/40">
+                    <div className="col-span-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>{ch}
+                    </div>
+                    <div className="col-span-4">
+                      <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    </div>
+                    <div className="col-span-4">
+                      <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    </div>
+                    <div className="col-span-1 text-right">
+                      <button onClick={() => handleDeleteChannel(ch)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>
                     </div>
                   </div>
                 );
               })}
+              {Object.keys(channelSettings).length === 0 && (
+                <div className="px-4 py-8 text-center text-sm text-slate-400">채널이 없습니다. 위에서 추가하세요.</div>
+              )}
+              <p className="px-4 py-3 text-[11px] text-slate-400">입력 후 다른 곳을 클릭하면 자동 저장됩니다.</p>
             </div>
           </div>
         )}
