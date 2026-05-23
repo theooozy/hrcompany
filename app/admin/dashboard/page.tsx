@@ -252,7 +252,7 @@ export default function DashboardPage() {
   };
 
   const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
-  const pendingCount = inquiries.filter(i => i.status === 'pending').length;
+  const pendingCount = inquiries.filter(i => i.status === 'pending' && i.type === 'signup').length;
   const approvedInquiries = inquiries.filter(i => i.status === 'approved');
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
@@ -303,9 +303,9 @@ export default function DashboardPage() {
               <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
             </div>
             {loading ? <div className="flex items-center justify-center h-40 text-slate-400">불러오는 중...</div>
-              : inquiries.length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
+              : inquiries.filter(i => i.type === 'ad').length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
               : <div className="space-y-4">
-                {inquiries.map((inq) => (
+                {inquiries.filter(i => i.type === 'ad').map((inq) => (
                   <div key={inq.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50" onClick={() => setExpanded(expanded === inq.id ? null : inq.id)}>
                       <div className="flex items-center gap-4">
@@ -391,7 +391,7 @@ export default function DashboardPage() {
                   >
                     {t.label}
                     <span className="ml-2 text-xs text-slate-400">
-                      {t.key === 'all' ? inquiries.length : inquiries.filter(i => i.status === t.key).length}
+                      {t.key === 'all' ? inquiries.filter(i => i.type === 'signup').length : inquiries.filter(i => i.type === 'signup' && i.status === t.key).length}
                     </span>
                   </button>
                 ))}
@@ -435,7 +435,7 @@ export default function DashboardPage() {
                   </div>
                 ))
               }
-              {inquiries.filter(i => approvalTab === 'all' ? true : i.status === approvalTab).length === 0 && (
+              {inquiries.filter(i => i.type === 'signup').filter(i => approvalTab === 'all' ? true : i.status === approvalTab).length === 0 && (
                 <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
                   <p className="text-slate-500">해당하는 문의가 없습니다.</p>
                 </div>
