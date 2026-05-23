@@ -9,6 +9,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const ASSIGNEE_OPTIONS = ['임상이', '이보배'];
+
 const WORK_STATUSES = [
   { label: '시작 전', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' },
   { label: '수정 필요', color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
@@ -48,6 +50,8 @@ type Inquiry = {
   memo?: string;
   work_status?: string;
   work_type?: string;
+  storyboard_assignees?: Record<string, string> | null;
+  video_assignees?: Record<string, string> | null;
   deleted?: boolean;
   deleted_at?: string;
 };
@@ -95,6 +99,16 @@ export default function DashboardPage() {
     const { error } = await supabase.from('inquiries').update({ status: 'approved', scheduled_date: today }).eq('id', id);
     if (!error) fetchInquiries();
     else alert('오류: ' + error.message);
+  };
+
+  const handleAssign = async (id: string, channel: string, kind: 'storyboard' | 'video', value: string) => {
+    const fieldName = kind === 'storyboard' ? 'storyboard_assignees' : 'video_assignees';
+    const target = inquiries.find(i => i.id === id) as (Inquiry & Record<string, unknown>) | undefined;
+    const current = (target && (target[fieldName] as Record<string, string> | null | undefined)) || {};
+    const next = { ...current, [channel]: value };
+    const { error } = await supabase.from('inquiries').update({ [fieldName]: next }).eq('id', id);
+    if (error) { alert('오류: ' + error.message); return; }
+    setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, [fieldName]: next } as Inquiry) : i));
   };
 
   const handleReject = async (id: string) => {
@@ -253,7 +267,21 @@ export default function DashboardPage() {
 
   const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
   const pendingCount = inquiries.filter(i => i.status === 'pending' && i.type === 'signup').length;
-  const approvedInquiries = inquiries.filter(i => i.status === 'approved');
+  const approvedInquiries = inquiries.filter(i => i.status === 'approved' && i.scheduled_date);
+  const tableRows = (() => {
+    const rows: { inq: Inquiry; channel: string; conceptName: string; rowKey: string }[] = [];
+    const brandCounter: Record<string, number> = {};
+    [...approvedInquiries].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach(inq => {
+      const chans = (inq.channels || '').split(',').map(c => c.trim()).filter(Boolean);
+      const list = chans.length ? chans : ['-'];
+      list.forEach(ch => {
+        const brandKey = inq.brand || '-';
+        brandCounter[brandKey] = (brandCounter[brandKey] || 0) + 1;
+        rows.push({ inq, channel: ch, conceptName: '컨셉' + brandCounter[brandKey], rowKey: inq.id + '__' + ch });
+      });
+    });
+    return rows;
+  })();
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
     if (!value) return null;
@@ -347,7 +375,7 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-3 flex-wrap">
                             <input type="date" value={selectedDates[inq.id] || ''} onChange={(e) => setSelectedDates({ ...selectedDates, [inq.id]: e.target.value })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                             <button onClick={() => handleApprove(inq)} className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm">✓ 날짜 선택 후 승인</button>
-                            <button onClick={() => handleReject(inq.id)} className="px-5 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold">✕ 거절</button>
+                            <button onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }} className="px-5 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold">✕ 거절</button>
                           </div>
                         )}
                         {(inq.work_status === '컴펌 완료') && (
@@ -427,7 +455,7 @@ export default function DashboardPage() {
                       )}
                       {inq.status !== 'rejected' && (
                         <button
-                          onClick={() => handleReject(inq.id)}
+                          onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }}
                           className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
                         >거절</button>
                       )}
@@ -455,34 +483,53 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      {['번호', '브랜드', '채널', '담당자', '작업', '상태', '작업타입', '유튜브'].map(h => (
+                      {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브'].map(h => (
                         <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {approvedInquiries.map((inq, idx) => (
-                      <tr key={inq.id} onClick={() => setSelectedDetail(inq)} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
+                    {tableRows.map((row, idx) => {
+                      const inq = row.inq;
+                      const ch = row.channel;
+                      const sa = (inq.storyboard_assignees as Record<string, string> | null | undefined) || {};
+                      const va = (inq.video_assignees as Record<string, string> | null | undefined) || {};
+                      return (
+                      <tr key={row.rowKey} onClick={() => setSelectedDetail(inq)} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
                         <td className="px-3 py-2 text-slate-400 text-xs">{idx + 1}</td>
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
-                        <td className="px-3 py-2 text-slate-600 text-xs max-w-[100px] truncate">{inq.channels || '-'}</td>
-                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <WorkStatusBadge inq={inq} />
+                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
+                          <div className="font-medium text-slate-700">{ch}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{row.conceptName}</div>
                         </td>
-                        <td className="px-3 py-2">{statusBadge(inq.status)}</td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <select value={sa[ch] || ''} onChange={(e) => handleAssign(inq.id, ch, 'storyboard', e.target.value)} className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                            <option value="">선택</option>
+                            {ASSIGNEE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <select value={va[ch] || ''} onChange={(e) => handleAssign(inq.id, ch, 'video', e.target.value)} className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                            <option value="">선택</option>
+                            {ASSIGNEE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <WorkTypeBadge inq={inq} />
                         </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <WorkStatusBadge inq={inq} />
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
                         <td className="px-3 py-2">
                           {inq.youtube_url
                             ? <a href={inq.youtube_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-red-500 text-xs font-semibold hover:underline">▶ YT</a>
                             : <span className="text-slate-300 text-xs">-</span>}
                         </td>
                       </tr>
-                    ))}
-                    {approvedInquiries.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">승인된 문의가 없습니다.</td></tr>}
-                  </tbody>
+                      );
+                    })}
+                    </tbody>
                 </table>
               </div>
             </div>
