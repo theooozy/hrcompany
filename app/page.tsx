@@ -69,29 +69,33 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="max-w-6xl mx-auto px-6 py-24 text-center">
-        <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-10">
+        <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-12">
           <span>✦</span>
           <span>디지털 콘텐츠 마케팅 파트너</span>
         </div>
 
-        <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
-          우리는 광고대행사가
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-            아닙니다.
-          </span>
-        </h1>
+        {/* Title - 우리는 작게(검정) / 광고대행사가 크게(파랑) / 아닙니다. 작게(검정) */}
+        <div className="mb-12">
+          <p className="text-2xl md:text-3xl font-semibold text-slate-800 mb-1">우리는</p>
+          <h1 className="text-6xl md:text-8xl font-extrabold text-blue-600 leading-none mb-2 tracking-tight">
+            광고대행사가
+          </h1>
+          <p className="text-2xl md:text-3xl font-semibold text-slate-800">아닙니다.</p>
+        </div>
 
-        <div className="max-w-3xl mx-auto mb-10 space-y-4 text-left bg-white/70 rounded-2xl p-8 border border-blue-100 shadow-sm">
-          <p className="text-slate-700 text-lg leading-relaxed">
-            우리는 <strong className="text-slate-900">49개의 자체 숏폼 채널,
-            500만 구독자, 월 15억 조회수</strong> 규모의 자체 트래픽을 바탕으로
-            기획부터 제작, 집행까지 모든 광고 과정을 직접 실행합니다.
+        {/* Description - no box, just text lines */}
+        <div className="max-w-2xl mx-auto mb-12 space-y-3 text-center">
+          <p className="text-slate-600 text-lg leading-relaxed">
+            우리는 <strong className="text-slate-800">49개의 자체 숏폼 채널, 500만 구독자, 월 15억 조회수</strong> 규모의
           </p>
-          <p className="text-slate-600 text-base leading-relaxed">
+          <p className="text-slate-600 text-lg leading-relaxed">
+            자체 트래픽을 바탕으로 기획부터 제작, 집행까지 모든 광고 과정을 직접 실행합니다.
+          </p>
+          <p className="text-slate-500 text-base leading-relaxed">
             브랜드가 유저에게 자연스럽게 스며드는 콘텐츠를 만들고,
-            콘텐츠를 통해 브랜드 가치를 극대화하는
-            <strong className="text-blue-700"> 디지털 콘텐츠 마케팅 파트너</strong>입니다.
+          </p>
+          <p className="text-slate-500 text-base leading-relaxed">
+            콘텐츠를 통해 브랜드 가치를 극대화하는 <strong className="text-blue-600">디지털 콘텐츠 마케팅 파트너</strong>입니다.
           </p>
         </div>
 
@@ -101,6 +105,24 @@ export default function HomePage() {
         >
           브랜드 광고 문의하기 →
         </a>
+      </section>
+
+      {/* Stats Section - 3 individual cards */}
+      <section className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 text-white text-center shadow-lg">
+            <div className="text-5xl font-extrabold mb-2">49개</div>
+            <div className="text-blue-200 text-base font-medium">자체 숏폼 채널</div>
+          </div>
+          <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl p-8 text-white text-center shadow-lg">
+            <div className="text-5xl font-extrabold mb-2">500만</div>
+            <div className="text-indigo-200 text-base font-medium">구독자</div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-8 text-white text-center shadow-lg">
+            <div className="text-5xl font-extrabold mb-2">15억</div>
+            <div className="text-blue-200 text-base font-medium">월 조회수</div>
+          </div>
+        </div>
       </section>
 
       {/* Differentiators Section */}
@@ -130,26 +152,6 @@ export default function HomePage() {
             </div>
             <h3 className="text-xl font-bold text-slate-800 mb-3">모든 과정을 직접 제작</h3>
             <p className="text-slate-500 leading-relaxed">콘텐츠 기획부터 집행까지 전 과정을 직접 수행하여 품질을 보장하고 책임 있는 결과를 만들어냅니다.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="max-w-6xl mx-auto px-6 py-12">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-10 text-white">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div>
-              <div className="text-5xl font-bold mb-2">49개</div>
-              <div className="text-blue-200 text-lg">자체 숏폼 채널</div>
-            </div>
-            <div>
-              <div className="text-5xl font-bold mb-2">500만</div>
-              <div className="text-blue-200 text-lg">구독자</div>
-            </div>
-            <div>
-              <div className="text-5xl font-bold mb-2">15억</div>
-              <div className="text-blue-200 text-lg">월 조회수</div>
-            </div>
           </div>
         </div>
       </section>
