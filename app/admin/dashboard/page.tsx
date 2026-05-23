@@ -440,7 +440,11 @@ export default function DashboardPage() {
                   return (
                     <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2">
                       <div className={`text-sm font-semibold mb-1 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-slate-700'}`}>{day}</div>
-                      {events.map(ev => <div key={ev.id} className="text-xs bg-blue-100 text-blue-700 rounded-lg px-2 py-1 mb-1 truncate">📢 {ev.brand || ev.name}</div>)}
+                      {events.map(ev => <div key={ev.id} className="text-xs bg-blue-100 text-blue-700 rounded-lg px-2 py-1 mb-1">
+                        <div className="font-semibold truncate">📢 {ev.brand || ev.name}</div>
+                        {ev.channels && <div className="text-xs opacity-75 truncate">📺 {ev.channels}</div>}
+                        {ev.work_type && <div className="text-xs opacity-75">🎬 {ev.work_type}</div>}
+                      </div>)}
                     </div>
                   );
                 })}
