@@ -55,6 +55,7 @@ type Inquiry = {
   work_types?: Record<string, string> | null;
   work_statuses?: Record<string, string> | null;
   deleted?: boolean;
+  deleted_from?: string;
   deleted_at?: string;
 };
 
@@ -116,8 +117,7 @@ export default function DashboardPage() {
   };
 
   const handleApproveSimple = async (id: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const { error } = await supabase.from('inquiries').update({ status: 'approved', scheduled_date: today }).eq('id', id);
+    const { error } = await supabase.from('inquiries').update({ status: 'approved' }).eq('id', id);
     if (!error) fetchInquiries();
     else alert('오류: ' + error.message);
   };
@@ -183,9 +183,9 @@ export default function DashboardPage() {
     if (data) setTrashList(data);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, source: string = '광고 문의') => {
     if (!confirm('정말 삭제하시겠습니까?')) return;
-    const { error } = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString(), deleted_from: source }).eq('id', id);
     if (!error) { fetchInquiries(); fetchTrash(); }
     else alert('오류: ' + error.message);
   };
@@ -467,7 +467,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3">
                         {inq.status === 'approved' && inq.scheduled_date && <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{formatDate(inq.scheduled_date)}</span>}
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(inq.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(inq.id, '광고 문의'); }}
                           className="text-xs font-medium text-slate-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-all"
                         >삭제</button>
                         <span className="text-slate-400 text-sm">{expanded === inq.id ? '▲' : '▼'}</span>
@@ -577,6 +577,10 @@ export default function DashboardPage() {
                           >거절</button>
                         </>
                       )}
+                      <button
+                        onClick={() => handleDelete(inq.id, '승인 목록')}
+                        className="px-3 py-2 text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      >삭제</button>
                     </div>
                   </div>
                 ))
@@ -734,6 +738,7 @@ export default function DashboardPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="font-bold text-slate-700">{inq.brand || '브랜드 미입력'}</span>
+                          {inq.deleted_from && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">출처: {inq.deleted_from}</span>}
                           {inq.channels && <span className="text-xs text-slate-400">{inq.channels}</span>}
                         </div>
                         <div className="text-xs text-slate-400">
