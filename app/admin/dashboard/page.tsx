@@ -245,7 +245,7 @@ export default function DashboardPage() {
   };
 
   const fetchStaff = async () => {
-    const { data } = await supabase.from('user_roles').select('user_email, role, status').order('user_email');
+    const { data } = await supabase.from('user_roles').select('user_email, name, role, status').order('user_email');
     setStaffList(data || []);
   };
   const handleApproveStaff = async (email: string, role: string) => {
@@ -930,7 +930,9 @@ export default function DashboardPage() {
                   {staffList.map((s) => (
                     <div key={s.user_email} className="px-6 py-4 flex items-center justify-between">
                       <div>
-                        <div className="text-sm font-semibold text-slate-800 flex items-center gap-2">{s.user_email}
+                        <div className="text-sm font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
+                          {s.name ? <span>{s.name}</span> : null}
+                          <span className="text-slate-500 text-xs font-normal">{s.user_email}</span>
                           {s.status === 'pending' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
                           {s.status === 'rejected' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">거부됨</span>}
                           {(!s.status || s.status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">승인됨</span>}
