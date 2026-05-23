@@ -462,10 +462,6 @@ export default function DashboardPage() {
                         <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg shrink-0">📢</div>
                         <div>
                           <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span>{statusBadge(inq.status)}</div>
-                          <div className="flex items-center gap-2">
-                            <RowWorkStatus inq={inq} channel={ch} rowKey={row.rowKey} />
-                            <RowWorkType inq={inq} channel={ch} />
-                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
