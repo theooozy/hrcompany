@@ -185,9 +185,22 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: string, source: string = '광고 문의') => {
     if (!confirm('정말 삭제하시겠습니까?')) return;
-    const { error } = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString(), deleted_from: source }).eq('id', id);
-    if (!error) { fetchInquiries(); fetchTrash(); }
-    else alert('오류: ' + error.message);
+    let { error, data } = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString(), deleted_from: source }).eq('id', id).select();
+    if (error && /deleted_from/i.test(error.message)) {
+      const retry = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString() }).eq('id', id).select();
+      error = retry.error;
+      data = retry.data;
+    }
+    if (error) {
+      alert('삭제 실패: ' + error.message + '\n\nSupabase RLS UPDATE 정책을 확인해주세요.');
+      return;
+    }
+    if (!data || data.length === 0) {
+      alert('삭제할 항목을 찾지 못했습니다. RLS 정책 또는 권한을 확인해주세요.');
+      return;
+    }
+    fetchInquiries();
+    fetchTrash();
   };
 
   const handleRestore = async (id: string) => {
@@ -210,11 +223,12 @@ export default function DashboardPage() {
     await fetchTrash();
     await fetchInquiries();
     if (okCount === ids.length) {
-      alert(`휴지통이 비워졌습니다. (${okCount}개 삭제)`);
+      // 조용히 완료 - 알림 없이 사라짐
+      return;
     } else if (okCount > 0) {
-      alert(`${okCount}/${ids.length}개 삭제됨. 일부 실패: ${failMsg}`);
+      alert(`${okCount}/${ids.length}개만 삭제됨. 일부 실패: ${failMsg}`);
     } else {
-      alert('삭제에 실패했습니다. Supabase RLS 정책(delete)을 확인해주세요. 오류: ' + failMsg);
+      alert('삭제에 실패했습니다. Supabase RLS 정책(delete)을 확인해주세요.\n오류: ' + failMsg);
     }
   };
 
@@ -595,8 +609,8 @@ export default function DashboardPage() {
         )}
 
                 {activeMenu === 'table' && (
-          <div className="flex gap-6">
-            <div className={selectedDetail ? 'w-3/5' : 'w-full'}>
+          <div className="relative">
+            <div className="w-full">
               <div className="mb-6 flex items-center justify-between">
                 <div><h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1><p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p></div>
                 <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
@@ -617,7 +631,7 @@ export default function DashboardPage() {
                       const sa = (inq.storyboard_assignees as Record<string, string> | null | undefined) || {};
                       const va = (inq.video_assignees as Record<string, string> | null | undefined) || {};
                       return (
-                      <tr key={row.rowKey} onClick={() => { setSelectedDetail(inq); setSelectedRowMeta({ channel: row.channel, conceptName: row.conceptName }); }} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
+                      <tr key={row.rowKey} onClick={() => { setSelectedDetail(inq); setSelectedRowMeta({ channel: row.channel, conceptName: row.conceptName }); }} className={`border-b border-slate-50 cursor-pointer transition-all ${(selectedDetail?.id === inq.id && selectedRowMeta?.channel === row.channel) ? 'bg-blue-100' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
                         <td className="px-3 py-2 text-slate-400 text-xs">{idx + 1}</td>
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
@@ -657,7 +671,7 @@ export default function DashboardPage() {
             </div>
 
             {selectedDetail && (
-              <div className="w-2/5 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-y-auto sticky top-4" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+              <div className="absolute top-0 left-0 right-0 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30" style={{ height: '50vh' }}>
                 <div className="p-5 border-b border-slate-100 flex items-start justify-between">
                   <div>
                     <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} {selectedRowMeta ? `/ ${selectedRowMeta.channel} · ${selectedRowMeta.conceptName}` : (selectedDetail.channels ? '/ ' + selectedDetail.channels : '')}</h2>
