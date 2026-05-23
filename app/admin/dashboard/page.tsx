@@ -54,7 +54,8 @@ type Inquiry = {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'table' | 'calendar' | 'trash'>('inquiries');
+  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'approval' | 'table' | 'calendar' | 'trash'>('inquiries');
+  const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
@@ -86,6 +87,13 @@ export default function DashboardPage() {
     if (!date) { alert('날짜를 먼저 선택해주세요.'); return; }
     const { error } = await supabase.from('inquiries').update({ status: 'approved', scheduled_date: date }).eq('id', inquiry.id);
     if (!error) { alert('승인 완료!'); fetchInquiries(); }
+    else alert('오류: ' + error.message);
+  };
+
+  const handleApproveSimple = async (id: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const { error } = await supabase.from('inquiries').update({ status: 'approved', scheduled_date: today }).eq('id', id);
+    if (!error) fetchInquiries();
     else alert('오류: ' + error.message);
   };
 
@@ -266,6 +274,9 @@ export default function DashboardPage() {
             <span>📋</span><span>광고 문의</span>
             {pendingCount > 0 && <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${activeMenu === 'inquiries' ? 'bg-white text-blue-600' : 'bg-blue-100 text-blue-600'}`}>{pendingCount}</span>}
           </button>
+          <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'approval' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
+            <span>✅</span><span>승인 목록</span>
+          </button>
           <button onClick={() => setActiveMenu('table')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📊</span><span>표 보기</span>
           </button>
@@ -358,7 +369,82 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {activeMenu === 'table' && (
+        {activeMenu === 'approval' && (
+          <div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800 mb-1">✅ 승인 목록</h1>
+                  <p className="text-slate-500 text-sm">문의를 승인하거나 거절할 수 있습니다.</p>
+                </div>
+              </div>
+              <div className="flex gap-2 border-b border-slate-200">
+                {([
+                  { key: 'all', label: '전체' },
+                  { key: 'approved', label: '승인' },
+                  { key: 'rejected', label: '거절' },
+                ] as const).map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setApprovalTab(t.key)}
+                    className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${approvalTab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {t.label}
+                    <span className="ml-2 text-xs text-slate-400">
+                      {t.key === 'all' ? inquiries.length : inquiries.filter(i => i.status === t.key).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {inquiries
+                .filter(i => approvalTab === 'all' ? true : i.status === approvalTab)
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map(inq => (
+                  <div key={inq.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-slate-800 truncate">{inq.brand || '브랜드 미입력'}</span>
+                        {inq.status === 'approved' && <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">승인</span>}
+                        {inq.status === 'rejected' && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">거절</span>}
+                        {(!inq.status || inq.status === 'pending') && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">대기</span>}
+                      </div>
+                      <div className="text-sm text-slate-500 truncate">
+                        {inq.name} · {inq.email} · {inq.channels}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        제출일: {new Date(inq.created_at).toLocaleDateString('ko-KR')}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {inq.status !== 'approved' && (
+                        <button
+                          onClick={() => handleApproveSimple(inq.id)}
+                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
+                        >승인</button>
+                      )}
+                      {inq.status !== 'rejected' && (
+                        <button
+                          onClick={() => handleReject(inq.id)}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
+                        >거절</button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              }
+              {inquiries.filter(i => approvalTab === 'all' ? true : i.status === approvalTab).length === 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                  <p className="text-slate-500">해당하는 문의가 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+                {activeMenu === 'table' && (
           <div className="flex gap-6">
             <div className={selectedDetail ? 'w-3/5' : 'w-full'}>
               <div className="mb-6 flex items-center justify-between">
