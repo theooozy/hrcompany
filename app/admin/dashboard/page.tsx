@@ -52,6 +52,8 @@ type Inquiry = {
   work_type?: string;
   storyboard_assignees?: Record<string, string> | null;
   video_assignees?: Record<string, string> | null;
+  work_types?: Record<string, string> | null;
+  work_statuses?: Record<string, string> | null;
   deleted?: boolean;
   deleted_at?: string;
 };
@@ -60,6 +62,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState<'inquiries' | 'approval' | 'table' | 'calendar' | 'trash'>('inquiries');
   const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
+  const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
+  const [openWorkStatusFor, setOpenWorkStatusFor] = useState<string | null>(null);
+  const [openWorkTypeFor, setOpenWorkTypeFor] = useState<string | null>(null);
+  const [selectedRowMeta, setSelectedRowMeta] = useState<{ channel: string; conceptName: string } | null>(null);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
@@ -73,6 +79,11 @@ export default function DashboardPage() {
 
   useEffect(() => { checkAuth(); fetchInquiries(); }, []);
   useEffect(() => { if (activeMenu === 'trash') fetchTrash(); }, [activeMenu]);
+  useEffect(() => {
+    const onClick = () => { setOpenWorkStatusFor(null); setOpenWorkTypeFor(null); };
+    window.addEventListener('click', onClick);
+    return () => window.removeEventListener('click', onClick);
+  }, []);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -175,6 +186,34 @@ export default function DashboardPage() {
     else alert('오류: ' + error.message);
   };
 
+  const handleEmptyTrash = async () => {
+    if (trashList.length === 0) { alert('휴지통이 비어있습니다.'); return; }
+    if (!confirm('휴지통의 모든 항목을 영구 삭제하시겠습니까? 복구가 불가능합니다.')) return;
+    const ids = trashList.map(t => t.id);
+    const { error } = await supabase.from('inquiries').delete().in('id', ids);
+    if (!error) { fetchTrash(); }
+    else alert('오류: ' + error.message);
+  };
+
+  const handleRowWorkType = async (id: string, channel: string, wtype: string) => {
+    const target = inquiries.find(i => i.id === id) as (Inquiry & Record<string, unknown>) | undefined;
+    const current = (target && (target['work_types'] as Record<string, string> | null | undefined)) || {};
+    const next = { ...current, [channel]: wtype };
+    const { error } = await supabase.from('inquiries').update({ work_types: next }).eq('id', id);
+    if (error) { alert('오류: ' + error.message + '\n\nSupabase에 work_types 컬럼이 없습니다. 안내된 SQL을 실행해주세요.'); return; }
+    setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, work_types: next } as Inquiry) : i));
+  };
+
+  const handleRowWorkStatus = async (id: string, channel: string, status: string) => {
+    const target = inquiries.find(i => i.id === id) as (Inquiry & Record<string, unknown>) | undefined;
+    const current = (target && (target['work_statuses'] as Record<string, string> | null | undefined)) || {};
+    const next = { ...current, [channel]: status };
+    const { error } = await supabase.from('inquiries').update({ work_statuses: next }).eq('id', id);
+    if (error) { alert('오류: ' + error.message + '\n\nSupabase에 work_statuses 컬럼이 없습니다. 안내된 SQL을 실행해주세요.'); return; }
+    setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, work_statuses: next } as Inquiry) : i));
+    setOpenWorkStatusFor(null);
+  };
+
   const handlePermanentDelete = async (id: string) => {
     if (!confirm('영구 삭제하시겠습니까? 복구가 불가능합니다.')) return;
     const { error } = await supabase.from('inquiries').delete().eq('id', id);
@@ -242,6 +281,54 @@ export default function DashboardPage() {
     );
   };
 
+  const RowWorkType = ({ inq, channel }: { inq: Inquiry; channel: string }) => {
+    const wt = (inq.work_types && inq.work_types[channel]) || inq.work_type || '콘티';
+    return (
+      <div className="flex gap-1">
+        {WORK_TYPES.map(t => (
+          <button key={t} onClick={(e) => { e.stopPropagation(); handleRowWorkType(inq.id, channel, t); }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${wt === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const RowWorkStatus = ({ inq, channel, rowKey }: { inq: Inquiry; channel: string; rowKey: string }) => {
+    const ws = (inq.work_statuses && inq.work_statuses[channel]) || inq.work_status || '시작 전';
+    const st = getWorkStatusStyle(ws);
+    const open = openWorkStatusFor === rowKey;
+    return (
+      <div className="relative inline-block">
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpenWorkStatusFor(open ? null : rowKey); }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${st.color} hover:opacity-80 transition-all`}
+        >
+          <span className={`w-2 h-2 rounded-full ${st.dot}`}></span>
+          {ws}
+          <span className="text-[10px]">▾</span>
+        </button>
+        {open && (
+          <div className="fixed z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden" style={{ minWidth: 140 }} ref={(el) => {
+            if (!el) return;
+            const parent = el.previousSibling as HTMLElement | null;
+            if (!parent) return;
+            const rect = parent.getBoundingClientRect();
+            el.style.top = (rect.bottom + 4) + 'px';
+            el.style.left = rect.left + 'px';
+          }}>
+            {WORK_STATUSES.map(s => (
+              <button key={s.label} onClick={(e) => { e.stopPropagation(); handleRowWorkStatus(inq.id, channel, s.label); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}>
+                <span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const MemoSection = ({ inq }: { inq: Inquiry }) => {
     const currentMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
     return (
@@ -297,7 +384,7 @@ export default function DashboardPage() {
             <span className="font-bold text-slate-800 text-sm">관리자 대시보드</span>
           </div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 flex flex-col">
           <button onClick={() => setActiveMenu('inquiries')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'inquiries' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📋</span><span>광고 문의</span>
             {pendingCount > 0 && <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${activeMenu === 'inquiries' ? 'bg-white text-blue-600' : 'bg-blue-100 text-blue-600'}`}>{pendingCount}</span>}
@@ -311,7 +398,7 @@ export default function DashboardPage() {
           <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📅</span><span>캘린더</span>
           </button>
-          <button onClick={() => setActiveMenu('trash')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'trash' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>
+          <button onClick={() => setActiveMenu('trash')} className={`w-full mt-auto flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'trash' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>
             <span>🗑️</span><span>휴지통</span>
             {trashList.length > 0 && <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${activeMenu === 'trash' ? 'bg-white text-red-500' : 'bg-red-100 text-red-500'}`}>{trashList.length}</span>}
           </button>
@@ -341,8 +428,8 @@ export default function DashboardPage() {
                         <div>
                           <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span>{statusBadge(inq.status)}</div>
                           <div className="flex items-center gap-2">
-                            <WorkStatusBadge inq={inq} />
-                            <WorkTypeBadge inq={inq} />
+                            <RowWorkStatus inq={inq} channel={ch} rowKey={row.rowKey} />
+                            <RowWorkType inq={inq} channel={ch} />
                           </div>
                         </div>
                       </div>
@@ -495,7 +582,7 @@ export default function DashboardPage() {
                       const sa = (inq.storyboard_assignees as Record<string, string> | null | undefined) || {};
                       const va = (inq.video_assignees as Record<string, string> | null | undefined) || {};
                       return (
-                      <tr key={row.rowKey} onClick={() => setSelectedDetail(inq)} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
+                      <tr key={row.rowKey} onClick={() => { setSelectedDetail(inq); setSelectedRowMeta({ channel: row.channel, conceptName: row.conceptName }); }} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
                         <td className="px-3 py-2 text-slate-400 text-xs">{idx + 1}</td>
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
@@ -515,10 +602,10 @@ export default function DashboardPage() {
                           </select>
                         </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <WorkTypeBadge inq={inq} />
+                          <RowWorkType inq={inq} channel={ch} />
                         </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <WorkStatusBadge inq={inq} />
+                          <RowWorkStatus inq={inq} channel={ch} rowKey={row.rowKey} />
                         </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
                         <td className="px-3 py-2">
@@ -538,14 +625,18 @@ export default function DashboardPage() {
               <div className="w-2/5 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-y-auto sticky top-4" style={{ maxHeight: 'calc(100vh - 80px)' }}>
                 <div className="p-5 border-b border-slate-100 flex items-start justify-between">
                   <div>
-                    <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} / {selectedDetail.channels || '-'}</h2>
+                    <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} {selectedRowMeta ? `/ ${selectedRowMeta.channel} · ${selectedRowMeta.conceptName}` : (selectedDetail.channels ? '/ ' + selectedDetail.channels : '')}</h2>
                     <p className="text-xs text-slate-400 mt-0.5">{selectedDetail.upload_date}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <WorkStatusBadge inq={selectedDetail} />
-                      <WorkTypeBadge inq={selectedDetail} />
+                      {selectedRowMeta
+                        ? <RowWorkStatus inq={selectedDetail} channel={selectedRowMeta.channel} rowKey={'detail__' + selectedDetail.id + '__' + selectedRowMeta.channel} />
+                        : <WorkStatusBadge inq={selectedDetail} />}
+                      {selectedRowMeta
+                        ? <RowWorkType inq={selectedDetail} channel={selectedRowMeta.channel} />
+                        : <WorkTypeBadge inq={selectedDetail} />}
                     </div>
                   </div>
-                  <button onClick={() => setSelectedDetail(null)} className="text-slate-400 hover:text-slate-600 text-xl ml-2 shrink-0">×</button>
+                  <button onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }} className="text-slate-400 hover:text-slate-600 text-xl ml-2 shrink-0">×</button>
                 </div>
                 <div className="p-5 space-y-2 border-b border-slate-100">
                   {[
@@ -593,7 +684,10 @@ export default function DashboardPage() {
                 <h1 className="text-2xl font-bold text-slate-800 mb-1">🗑️ 휴지통</h1>
                 <p className="text-slate-500 text-sm">삭제된 문의 목록입니다. 복구하거나 영구 삭제할 수 있습니다.</p>
               </div>
+              <div className="flex gap-2">
               <button onClick={fetchTrash} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+              <button onClick={handleEmptyTrash} className="px-4 py-2 text-sm text-white bg-red-500 rounded-xl hover:bg-red-600 font-semibold">🗑️ 전체 삭제</button>
+            </div>
             </div>
             {trashList.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
@@ -630,59 +724,94 @@ export default function DashboardPage() {
 
         {activeMenu === 'calendar' && (
           <div>
-            <div className="mb-8"><h1 className="text-2xl font-bold text-slate-800 mb-1">캘린더</h1><p className="text-slate-500 text-sm">승인된 광고 일정을 확인합니다.</p></div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 text-lg">←</button>
-                <h2 className="text-lg font-bold text-slate-800">{currentMonth.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })}</h2>
-                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 text-lg">→</button>
-              </div>
-              <div className="grid grid-cols-7 border-b border-slate-100">
-                {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-                  <div key={d} className={`text-center py-3 text-xs font-semibold ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-500'}`}>{d}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7">
-                {Array.from({ length: firstDay }).map((_, i) => <div key={'e' + i} className="border-r border-b border-slate-50 min-h-24 p-2" />)}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const events = getApprovedForDate(dateStr);
-                  const isToday = new Date().toISOString().slice(0, 10) === dateStr;
-                  const dow = (firstDay + i) % 7;
-                  return (
-                    <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2">
-                      <div className={`text-sm font-semibold mb-1 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-slate-700'}`}>{day}</div>
-                      {events.map(ev => <div key={ev.id} className="text-xs bg-blue-100 text-blue-700 rounded-lg px-2 py-1 mb-1">
-                        <div className="font-semibold truncate">📢 {ev.brand || ev.name}</div>
-                        {ev.channels && <div className="text-xs opacity-75 truncate">📺 {ev.channels}</div>}
-                        {ev.work_type && <div className="text-xs opacity-75">🎬 {ev.work_type}</div>}
-                      </div>)}
-                    </div>
-                  );
-                })}
+            <div className="mb-6 flex items-center justify-between">
+              <div><h1 className="text-2xl font-bold text-slate-800 mb-1">캘린더</h1><p className="text-slate-500 text-sm">승인된 광고 일정을 확인합니다.</p></div>
+              <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+                <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>주간</button>
+                <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'month' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>월간</button>
               </div>
             </div>
-            {approvedInquiries.length > 0 && (
-              <div className="mt-6">
-                <h3 className="font-bold text-slate-700 mb-3">승인된 광고 일정</h3>
-                <div className="space-y-3">
-                  {approvedInquiries.sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || '')).map(i => (
-                    <div key={i.id} className="bg-white rounded-xl p-4 border border-slate-100 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg">📢</div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-slate-800">{i.brand}</div>
-                        <div className="text-sm text-slate-500">{i.name} · {i.channels}</div>
-                        {i.youtube_url && <a href={i.youtube_url} target="_blank" rel="noreferrer" className="text-xs text-red-500 underline">▶ 유튜브 보기</a>}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-blue-600">{formatDate(i.scheduled_date || '')}</div>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">승인됨</span>
-                      </div>
-                    </div>
+            {calendarView === 'month' ? (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                  <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">‹</button>
+                  <h2 className="text-lg font-bold text-slate-800">{year}년 {month + 1}월</h2>
+                  <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">›</button>
+                </div>
+                <div className="grid grid-cols-7 border-b border-slate-100">
+                  {['일','월','화','수','목','금','토'].map((d, i) => (
+                    <div key={d} className={`text-center py-2 text-xs font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'}`}>{d}</div>
                   ))}
                 </div>
+                <div className="grid grid-cols-7">
+                  {Array.from({ length: firstDay }).map((_, i) => (
+                    <div key={'p' + i} className="border-r border-b border-slate-50 min-h-24 bg-slate-50/50" />
+                  ))}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const events = getApprovedForDate(dateStr);
+                    const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+                    const dow = (firstDay + i) % 7;
+                    return (
+                      <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2">
+                        <div className={`text-xs font-semibold mb-1 ${isToday ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{day}</div>
+                        <div className="space-y-1">
+                          {events.slice(0, 3).map(ev => (
+                            <div key={ev.id} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate" title={ev.brand}>{ev.brand}</div>
+                          ))}
+                          {events.length > 3 && <div className="text-[10px] text-slate-400">+{events.length - 3}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+            ) : (
+              (() => {
+                const weekStart = new Date(currentMonth);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                weekStart.setHours(0,0,0,0);
+                const weekDays = Array.from({ length: 7 }).map((_, i) => {
+                  const d = new Date(weekStart); d.setDate(d.getDate() + i); return d;
+                });
+                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                      <button onClick={() => { const d = new Date(currentMonth); d.setDate(d.getDate() - 7); setCurrentMonth(d); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">‹</button>
+                      <h2 className="text-lg font-bold text-slate-800">{weekDays[0].getMonth() + 1}월 {weekDays[0].getDate()}일 ~ {weekDays[6].getMonth() + 1}월 {weekDays[6].getDate()}일</h2>
+                      <button onClick={() => { const d = new Date(currentMonth); d.setDate(d.getDate() + 7); setCurrentMonth(d); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">›</button>
+                    </div>
+                    <div className="grid grid-cols-7 border-b border-slate-100">
+                      {['일','월','화','수','목','금','토'].map((d, i) => (
+                        <div key={d} className={`text-center py-2 text-xs font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'}`}>{d}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7">
+                      {weekDays.map((d, i) => {
+                        const dateStr = fmt(d);
+                        const events = getApprovedForDate(dateStr);
+                        const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+                        return (
+                          <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3">
+                            <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
+                            <div className="space-y-1.5">
+                              {events.map(ev => (
+                                <div key={ev.id} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded" title={ev.brand}>
+                                  <div className="font-semibold truncate">{ev.brand}</div>
+                                  <div className="text-[10px] text-blue-500 truncate">{ev.channels || ''}</div>
+                                </div>
+                              ))}
+                              {events.length === 0 && <div className="text-[10px] text-slate-300">일정 없음</div>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()
             )}
           </div>
         )}
