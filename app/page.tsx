@@ -46,7 +46,7 @@ export default function HomePage() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        type: 'brand_ad',
+        type: 'signup',
         status: 'pending',
       }]);
 
