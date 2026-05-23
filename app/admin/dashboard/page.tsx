@@ -671,7 +671,7 @@ export default function DashboardPage() {
             </div>
 
             {selectedDetail && (
-              <div className="absolute top-0 left-0 right-[-15%] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30" style={{ height: '75vh' }}>
+              <div className="absolute top-0 bottom-0 right-0 w-1/2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30" style={{ minHeight: '600px' }}>
                 <div className="p-5 border-b border-slate-100 flex items-start justify-between">
                   <div>
                     <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} {selectedRowMeta ? `/ ${selectedRowMeta.channel} · ${selectedRowMeta.conceptName}` : (selectedDetail.channels ? '/ ' + selectedDetail.channels : '')}</h2>
