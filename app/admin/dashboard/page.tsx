@@ -56,10 +56,7 @@ export default function DashboardPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => { checkAuth(); fetchInquiries(); }, []);
-
-  useEffect(() => {
-    if (selectedDetail) fetchComments(selectedDetail.id);
-  }, [selectedDetail]);
+  useEffect(() => { if (selectedDetail) fetchComments(selectedDetail.id); }, [selectedDetail]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -103,7 +100,7 @@ export default function DashboardPage() {
   };
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !commentAuthor.trim()) { alert('작성자와 댓글을 입력해주세요.'); return; }
+    if (!newComment.trim() || !commentAuthor.trim()) { alert('작성자와 댓글을 모두 입력해주세요.'); return; }
     if (!selectedDetail) return;
     setSubmittingComment(true);
     const { error } = await supabase.from('inquiry_comments').insert([{ inquiry_id: selectedDetail.id, author: commentAuthor, content: newComment }]);
@@ -120,16 +117,8 @@ export default function DashboardPage() {
   };
 
   const getApprovedForDate = (dateStr: string) => inquiries.filter(i => i.status === 'approved' && i.scheduled_date === dateStr);
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
+  const formatDateTime = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
 
   const statusBadge = (status: string) => {
     if (status === 'approved') return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">승인됨</span>;
@@ -143,12 +132,7 @@ export default function DashboardPage() {
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
     if (!value) return null;
-    return (
-      <div className="flex gap-2">
-        <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">{label}</span>
-        <span className="text-xs text-slate-700 whitespace-pre-wrap">{value}</span>
-      </div>
-    );
+    return <div className="flex gap-2"><span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">{label}</span><span className="text-xs text-slate-700 whitespace-pre-wrap">{value}</span></div>;
   };
 
   return (
@@ -156,9 +140,7 @@ export default function DashboardPage() {
       <aside className="w-56 bg-white border-r border-slate-200 flex flex-col fixed h-full z-10">
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center">
-              <span className="text-white font-bold text-xs">HR</span>
-            </div>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center"><span className="text-white font-bold text-xs">HR</span></div>
             <span className="font-bold text-slate-800 text-sm">관리자 대시보드</span>
           </div>
         </div>
@@ -175,13 +157,12 @@ export default function DashboardPage() {
           </button>
         </nav>
         <div className="p-3 border-t border-slate-100 space-y-1">
-          <a href="/" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition-all"><span>🏠</span><span>홈으로</span></a>
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 transition-all"><span>🚪</span><span>로그아웃</span></button>
+          <a href="/" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100"><span>🏠</span><span>홈으로</span></a>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100"><span>🚪</span><span>로그아웃</span></button>
         </div>
       </aside>
 
       <main className="flex-1 ml-56 p-8">
-
         {activeMenu === 'inquiries' && (
           <div>
             <div className="mb-8 flex items-center justify-between">
@@ -231,9 +212,7 @@ export default function DashboardPage() {
                         {inq.status === 'approved' && (
                           <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-100">
                             <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록 (컨펌 완료 후)</p>
-                            {inq.youtube_url && (
-                              <div className="mb-2"><a href={inq.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-sm underline">{inq.youtube_url}</a></div>
-                            )}
+                            {inq.youtube_url && <div className="mb-2"><a href={inq.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-sm underline">{inq.youtube_url}</a></div>}
                             <div className="flex gap-2">
                               <input type="url" placeholder="https://youtube.com/watch?v=..." value={ytInputs[inq.id] ?? (inq.youtube_url || '')} onChange={(e) => setYtInputs({ ...ytInputs, [inq.id]: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                               <button onClick={() => handleSaveYoutube(inq.id)} className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600">저장</button>
@@ -250,8 +229,8 @@ export default function DashboardPage() {
         )}
 
         {activeMenu === 'table' && (
-          <div className="flex gap-6 h-full">
-            <div className={`${selectedDetail ? 'w-3/5' : 'w-full'} transition-all`}>
+          <div className="flex gap-6">
+            <div className={selectedDetail ? 'w-3/5' : 'w-full'}>
               <div className="mb-6 flex items-center justify-between">
                 <div><h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1><p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p></div>
                 <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
@@ -260,22 +239,18 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">번호</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">브랜드</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">채널</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">담당자</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">업로드일</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">상태</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500">유튜브</th>
+                      {['번호', '브랜드', '채널', '담당자', '업로드일', '상태', '유튜브'].map(h => (
+                        <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {approvedInquiries.map((inq, idx) => (
                       <tr key={inq.id} onClick={() => setSelectedDetail(inq)} className={`border-b border-slate-50 cursor-pointer transition-all ${selectedDetail?.id === inq.id ? 'bg-blue-50' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
                         <td className="px-3 py-3 text-slate-400 text-xs">{idx + 1}</td>
-                        <td className="px-3 py-3 font-medium text-slate-800 whitespace-nowrap">{inq.brand || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600 text-xs">{inq.channels || '-'}</td>
-                        <td className="px-3 py-3 text-slate-600 text-xs">{inq.name || '-'}</td>
+                        <td className="px-3 py-3 font-medium text-slate-800 whitespace-nowrap max-w-[160px] truncate">{inq.brand || '-'}</td>
+                        <td className="px-3 py-3 text-slate-600 text-xs max-w-[120px] truncate">{inq.channels || '-'}</td>
+                        <td className="px-3 py-3 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
                         <td className="px-3 py-3 text-slate-600 text-xs whitespace-nowrap">{inq.upload_date || '-'}</td>
                         <td className="px-3 py-3">{statusBadge(inq.status)}</td>
                         <td className="px-3 py-3">
@@ -285,9 +260,7 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ))}
-                    {approvedInquiries.length === 0 && (
-                      <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">승인된 문의가 없습니다.</td></tr>
-                    )}
+                    {approvedInquiries.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">승인된 문의가 없습니다.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -300,9 +273,8 @@ export default function DashboardPage() {
                     <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} / {selectedDetail.channels || '-'}</h2>
                     <p className="text-xs text-slate-400 mt-0.5">{selectedDetail.upload_date}</p>
                   </div>
-                  <button onClick={() => setSelectedDetail(null)} className="text-slate-400 hover:text-slate-600 text-xl ml-2">×</button>
+                  <button onClick={() => setSelectedDetail(null)} className="text-slate-400 hover:text-slate-600 text-xl ml-2 shrink-0">×</button>
                 </div>
-
                 <div className="p-5 space-y-2 border-b border-slate-100">
                   {[
                     ['브랜드', selectedDetail.brand],
@@ -317,27 +289,23 @@ export default function DashboardPage() {
                     ['2차 활용', selectedDetail.secondary_use],
                     ['희망 컨셉', selectedDetail.video_concept],
                     ['기타 전달', selectedDetail.extra],
-                  ].map(([label, value]) => value ? (
-                    <div key={label} className="flex gap-3 text-sm">
-                      <span className="text-slate-400 w-20 shrink-0 text-xs">{label}</span>
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label} className="flex gap-3">
+                      <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">{label}</span>
                       <span className="text-slate-700 text-xs whitespace-pre-wrap">{value}</span>
                     </div>
-                  ) : null)}
+                  ))}
                 </div>
-
                 {selectedDetail.status === 'approved' && (
                   <div className="p-5 border-b border-slate-100 bg-green-50">
                     <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
-                    {selectedDetail.youtube_url && (
-                      <div className="mb-2"><a href={selectedDetail.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-xs underline break-all">{selectedDetail.youtube_url}</a></div>
-                    )}
+                    {selectedDetail.youtube_url && <div className="mb-2"><a href={selectedDetail.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-xs underline break-all">{selectedDetail.youtube_url}</a></div>}
                     <div className="flex gap-2">
                       <input type="url" placeholder="https://youtube.com/..." value={ytInputs[selectedDetail.id] ?? (selectedDetail.youtube_url || '')} onChange={(e) => setYtInputs({ ...ytInputs, [selectedDetail.id]: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                       <button onClick={() => handleSaveYoutube(selectedDetail.id)} className="px-3 py-2 bg-red-500 text-white rounded-xl text-xs font-semibold hover:bg-red-600">저장</button>
                     </div>
                   </div>
                 )}
-
                 <div className="p-5">
                   <h3 className="text-sm font-bold text-slate-700 mb-3">💬 댓글</h3>
                   <div className="space-y-3 mb-4 max-h-52 overflow-y-auto">
@@ -392,9 +360,7 @@ export default function DashboardPage() {
                   return (
                     <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2">
                       <div className={`text-sm font-semibold mb-1 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-slate-700'}`}>{day}</div>
-                      {events.map(ev => (
-                        <div key={ev.id} className="text-xs bg-blue-100 text-blue-700 rounded-lg px-2 py-1 mb-1 truncate">📢 {ev.brand || ev.name}</div>
-                      ))}
+                      {events.map(ev => <div key={ev.id} className="text-xs bg-blue-100 text-blue-700 rounded-lg px-2 py-1 mb-1 truncate">📢 {ev.brand || ev.name}</div>)}
                     </div>
                   );
                 })}
