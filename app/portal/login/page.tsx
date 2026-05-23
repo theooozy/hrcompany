@@ -26,12 +26,20 @@ export default function PortalLoginPage() {
         .select('id, name, email, status')
         .eq('name', name.trim())
         .eq('email', email.trim())
-        .eq('status', 'approved')
         .limit(1);
 
       if (error) throw new Error(error.message);
       if (!data || data.length === 0) {
-        setError('승인된 문의 내역을 찾을 수 없습니다. 이름과 이메일을 다시 확인해주세요.');
+        setError('문의 내역을 찾을 수 없습니다. 이름과 이메일을 다시 확인해주세요.');
+        setLoading(false);
+        return;
+      }
+      if (data[0].status !== 'approved') {
+        if (data[0].status === 'rejected') {
+          setError('문의가 거절되었습니다. 자세한 사항은 관리자에게 문의해주세요.');
+        } else {
+          setError('관리자 승인 대기 중입니다. 승인 후 이용하실 수 있습니다.');
+        }
         setLoading(false);
         return;
       }
