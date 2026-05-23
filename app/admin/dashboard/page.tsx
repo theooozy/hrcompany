@@ -136,11 +136,17 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAdReview = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
-    const { error } = await supabase.from('inquiries').update({ ad_review_status: status }).eq('id', id);
+  const handleAdReview = async (id: string, status: 'approved' | 'rejected' | 'pending', scheduledDate?: string) => {
+    const updates: { ad_review_status: string; scheduled_date?: string; work_type?: string; status?: string } = { ad_review_status: status };
+    if (status === 'approved' && scheduledDate) {
+      updates.scheduled_date = scheduledDate;
+      updates.status = 'approved';
+      updates.work_type = '광고';
+    }
+    const { error } = await supabase.from('inquiries').update(updates).eq('id', id);
     if (error) { alert('오류: ' + error.message); return; }
-    setInquiries(prev => prev.map(i => i.id === id ? { ...i, ad_review_status: status } : i));
-  };
+    setInquiries(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+  };;
   const fetchInquiries = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('inquiries').select('*').or('deleted.is.null,deleted.eq.false').order('created_at', { ascending: false });
@@ -607,7 +613,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg shrink-0">📢</div>
                         <div>
-                          <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span>{statusBadge(inq.status)}</div>
+                          <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span></div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -647,7 +653,7 @@ export default function DashboardPage() {
                           {(!inq.ad_review_status || inq.ad_review_status === 'pending') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
                           {(!inq.ad_review_status || inq.ad_review_status === 'pending') && (
                             <>
-                              <button onClick={() => handleAdReview(inq.id, 'approved')} className="ml-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold">승인</button>
+                              <button onClick={() => { const dt = prompt('시작 날짜을 입력하세요 (YYYY-MM-DD)', new Date().toISOString().slice(0,10)); if (dt) handleAdReview(inq.id, 'approved', dt); }} className="ml-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold">승인</button>
                               <button onClick={() => handleAdReview(inq.id, 'rejected')} className="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold">거절</button>
                             </>
                           )}
@@ -655,7 +661,6 @@ export default function DashboardPage() {
                             <button onClick={() => handleAdReview(inq.id, 'pending')} className="ml-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">되돌리기</button>
                           )}
                         </div>
-                        <MemoSection inq={inq} />
                         {inq.status === 'pending' && (
                           <div className="flex items-center gap-3 flex-wrap">
                             <input type="date" value={selectedDates[inq.id] || ''} onChange={(e) => setSelectedDates({ ...selectedDates, [inq.id]: e.target.value })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -704,7 +709,7 @@ export default function DashboardPage() {
                   >
                     {t.label}
                     <span className="ml-2 text-xs text-slate-400">
-                      {t.key === 'all' ? inquiries.filter(i => i.type === 'signup').length : inquiries.filter(i => i.type === 'signup' && i.status === t.key).length}
+                      {inquiries.filter(i => i.type === 'signup' && (t.key === 'all' ? (!i.status || i.status === 'pending') : i.status === t.key)).length}
                     </span>
                   </button>
                 ))}
@@ -713,7 +718,7 @@ export default function DashboardPage() {
 
             <div className="space-y-3">
               {inquiries
-                .filter(i => approvalTab === 'all' ? true : i.status === approvalTab)
+                .filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab)
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .map(inq => (
                   <div key={inq.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
@@ -752,7 +757,7 @@ export default function DashboardPage() {
                   </div>
                 ))
               }
-              {inquiries.filter(i => i.type === 'signup').filter(i => approvalTab === 'all' ? true : i.status === approvalTab).length === 0 && (
+              {inquiries.filter(i => i.type === 'signup').filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab).length === 0 && (
                 <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
                   <p className="text-slate-500">해당하는 문의가 없습니다.</p>
                 </div>
