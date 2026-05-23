@@ -141,7 +141,7 @@ export default function DashboardPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('휴지통으로 이동하시겠습니까?')) return;
+    if (!confirm('정말 삭제하시겠습니까?')) return;
     const { error } = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString() }).eq('id', id);
     if (!error) { fetchInquiries(); fetchTrash(); }
     else alert('오류: ' + error.message);
@@ -311,9 +311,8 @@ export default function DashboardPage() {
                         {inq.status === 'approved' && inq.scheduled_date && <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{formatDate(inq.scheduled_date)}</span>}
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDelete(inq.id); }}
-                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all"
-                          title="휴지통으로 이동"
-                        >🗑️</button>
+                          className="text-xs font-medium text-slate-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-all"
+                        >삭제</button>
                         <span className="text-slate-400 text-sm">{expanded === inq.id ? '▲' : '▼'}</span>
                       </div>
                     </div>
