@@ -48,11 +48,13 @@ type Inquiry = {
   memo?: string;
   work_status?: string;
   work_type?: string;
+  deleted?: boolean;
+  deleted_at?: string;
 };
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'table' | 'calendar'>('inquiries');
+  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'table' | 'calendar' | 'trash'>('inquiries');
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
@@ -65,6 +67,7 @@ export default function DashboardPage() {
   const [savingMemo, setSavingMemo] = useState<string | null>(null);
 
   useEffect(() => { checkAuth(); fetchInquiries(); }, []);
+  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); }, [activeMenu]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -73,7 +76,7 @@ export default function DashboardPage() {
 
   const fetchInquiries = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('inquiries').select('*').neq('deleted', true).order('created_at', { ascending: false });
     if (!error && data) setInquiries(data);
     setLoading(false);
   };
@@ -128,6 +131,33 @@ export default function DashboardPage() {
       if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, memo } : null);
     }
     setSavingMemo(null);
+  };
+
+  const [trashList, setTrashList] = useState<Inquiry[]>([]);
+
+  const fetchTrash = async () => {
+    const { data } = await supabase.from('inquiries').select('*').eq('deleted', true).order('deleted_at', { ascending: false });
+    if (data) setTrashList(data);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('휴지통으로 이동하시겠습니까?')) return;
+    const { error } = await supabase.from('inquiries').update({ deleted: true, deleted_at: new Date().toISOString() }).eq('id', id);
+    if (!error) { fetchInquiries(); fetchTrash(); }
+    else alert('오류: ' + error.message);
+  };
+
+  const handleRestore = async (id: string) => {
+    const { error } = await supabase.from('inquiries').update({ deleted: false, deleted_at: null }).eq('id', id);
+    if (!error) { fetchTrash(); fetchInquiries(); }
+    else alert('오류: ' + error.message);
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    if (!confirm('영구 삭제하시겠습니까? 복구가 불가능합니다.')) return;
+    const { error } = await supabase.from('inquiries').delete().eq('id', id);
+    if (!error) fetchTrash();
+    else alert('오류: ' + error.message);
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/admin/login'); };
@@ -242,6 +272,10 @@ export default function DashboardPage() {
           <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📅</span><span>캘린더</span>
           </button>
+          <button onClick={() => setActiveMenu('trash')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'trash' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>
+            <span>🗑️</span><span>휴지통</span>
+            {trashList.length > 0 && <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${activeMenu === 'trash' ? 'bg-white text-red-500' : 'bg-red-100 text-red-500'}`}>{trashList.length}</span>}
+          </button>
         </nav>
         <div className="p-3 border-t border-slate-100 space-y-1">
           <a href="/" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100"><span>🏠</span><span>홈으로</span></a>
@@ -275,6 +309,11 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {inq.status === 'approved' && inq.scheduled_date && <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{formatDate(inq.scheduled_date)}</span>}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(inq.id); }}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all"
+                          title="휴지통으로 이동"
+                        >🗑️</button>
                         <span className="text-slate-400 text-sm">{expanded === inq.id ? '▲' : '▼'}</span>
                       </div>
                     </div>
@@ -410,6 +449,48 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeMenu === 'trash' && (
+          <div>
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800 mb-1">🗑️ 휴지통</h1>
+                <p className="text-slate-500 text-sm">삭제된 문의 목록입니다. 복구하거나 영구 삭제할 수 있습니다.</p>
+              </div>
+              <button onClick={fetchTrash} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+            </div>
+            {trashList.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
+                <div className="text-4xl mb-4">🗑️</div>
+                <p className="text-slate-500">휴지통이 비어있습니다.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {trashList.map((inq) => (
+                  <div key={inq.id} className="bg-white rounded-2xl border border-red-100 shadow-sm p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-lg shrink-0">🗑️</div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-slate-700">{inq.brand || '브랜드 미입력'}</span>
+                          {inq.channels && <span className="text-xs text-slate-400">{inq.channels}</span>}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {inq.name} · {inq.email}
+                          {inq.deleted_at && <span className="ml-2">삭제: {new Date(inq.deleted_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleRestore(inq.id)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-all">↩ 복구</button>
+                      <button onClick={() => handlePermanentDelete(inq.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all">완전 삭제</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
