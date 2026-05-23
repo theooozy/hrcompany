@@ -61,7 +61,11 @@ type Inquiry = {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'approval' | 'table' | 'calendar' | 'trash'>('inquiries');
+  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'approval' | 'table' | 'calendar' | 'trash' | 'staff'>('inquiries');
+  const [currentEmail, setCurrentEmail] = useState<string>('');
+  const [currentRole, setCurrentRole] = useState<string>('worker');
+  const [staffList, setStaffList] = useState<Array<{ user_email: string; role: string }>>([]);
+  const [newStaffEmail, setNewStaffEmail] = useState<string>('');
   const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
   const [openWorkStatusFor, setOpenWorkStatusFor] = useState<string | null>(null);
@@ -89,7 +93,7 @@ export default function DashboardPage() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [activeMenu]);
-  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); }, [activeMenu]);
+  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); if (activeMenu === 'staff') fetchStaff(); }, [activeMenu]);
   useEffect(() => {
     const onClick = () => { setOpenWorkStatusFor(null); setOpenWorkTypeFor(null); };
     window.addEventListener('click', onClick);
@@ -98,7 +102,15 @@ export default function DashboardPage() {
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) router.push('/admin/login');
+    if (!session) { router.push('/admin/login'); return; }
+    const email = session.user?.email || '';
+    setCurrentEmail(email);
+    if (email === 'tkddl@whrcompany.com') {
+      setCurrentRole('master');
+    } else {
+      const { data: roleRow } = await supabase.from('user_roles').select('role').eq('user_email', email).maybeSingle();
+      setCurrentRole(roleRow?.role || 'worker');
+    }
   };
 
   const fetchInquiries = async () => {
@@ -209,7 +221,26 @@ export default function DashboardPage() {
     else alert('오류: ' + error.message);
   };
 
+  const fetchStaff = async () => {
+    const { data } = await supabase.from('user_roles').select('user_email, role').order('user_email');
+    setStaffList(data || []);
+  };
+  const handleAddStaff = async (email: string, role: string) => {
+    if (!email) return;
+    const { error } = await supabase.from('user_roles').upsert({ user_email: email, role }, { onConflict: 'user_email' });
+    if (error) { alert('오류: ' + error.message); return; }
+    setNewStaffEmail('');
+    fetchStaff();
+  };
+  const handleRemoveStaff = async (email: string) => {
+    if (!confirm(email + ' 권한을 삭제하시겠습니까?')) return;
+    const { error } = await supabase.from('user_roles').delete().eq('user_email', email);
+    if (error) { alert('오류: ' + error.message); return; }
+    fetchStaff();
+  };
+  const canDeletePermanent = () => currentRole === 'master' || currentRole === 'admin';
   const handleEmptyTrash = async () => {
+    if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다. 관리자에게 문의하세요.'); return; }
     if (trashList.length === 0) { alert('휴지통이 비어있습니다.'); return; }
     if (!confirm('휴지통을 비우시겠습니까? 모든 항목이 영구 삭제되며 복구할 수 없습니다.')) return;
     const ids = trashList.map(t => t.id);
@@ -252,6 +283,7 @@ export default function DashboardPage() {
   };
 
   const handlePermanentDelete = async (id: string) => {
+    if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다. 관리자에게 문의하세요.'); return; }
     if (!confirm('영구 삭제하시겠습니까? 복구가 불가능합니다.')) return;
     const { error } = await supabase.from('inquiries').delete().eq('id', id);
     if (!error) fetchTrash();
@@ -447,6 +479,11 @@ export default function DashboardPage() {
           <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📅</span><span>캘린더</span>
           </button>
+          {currentEmail === 'tkddl@whrcompany.com' && (
+            <button onClick={() => setActiveMenu('staff')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'staff' ? 'bg-purple-100 text-purple-700' : 'text-slate-600 hover:bg-slate-100'}`}>
+              <span>👥</span><span>직원</span>
+            </button>
+          )}
           <button onClick={() => setActiveMenu('trash')} className={`w-full mt-auto flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'trash' ? 'bg-red-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>
             <span>🗑️</span><span>휴지통</span>
             {trashList.length > 0 && <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${activeMenu === 'trash' ? 'bg-white text-red-500' : 'bg-red-100 text-red-500'}`}>{trashList.length}</span>}
@@ -769,6 +806,54 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {activeMenu === 'staff' && currentEmail === 'tkddl@whrcompany.com' && (
+          <div>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">👥 직원 관리</h1>
+              <p className="text-slate-500 text-sm">직원에게 권한을 부여하세요. (관리자만 영구 삭제 가능)</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+              <h2 className="text-base font-bold text-slate-800 mb-4">새 직원 추가</h2>
+              <div className="flex gap-2">
+                <input type="email" placeholder="이메일 (예: hong@whrcompany.com)" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                <select id="newStaffRole" defaultValue="worker" className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white">
+                  <option value="admin">관리자</option>
+                  <option value="mid">중간 관리자</option>
+                  <option value="worker">작업자</option>
+                </select>
+                <button onClick={() => { const sel = document.getElementById('newStaffRole') as HTMLSelectElement; handleAddStaff(newStaffEmail.trim(), sel.value); }} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600">추가</button>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-base font-bold text-slate-800">직원 목록</h2>
+                <span className="text-xs text-slate-400">{staffList.length}명</span>
+              </div>
+              {staffList.length === 0 ? (
+                <div className="p-12 text-center text-slate-400 text-sm">등록된 직원이 없습니다.</div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {staffList.map((s) => (
+                    <div key={s.user_email} className="px-6 py-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-800">{s.user_email}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{s.role === 'admin' ? '관리자' : s.role === 'mid' ? '중간 관리자' : '작업자'}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select value={s.role} onChange={(e) => handleAddStaff(s.user_email, e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
+                          <option value="admin">관리자</option>
+                          <option value="mid">중간 관리자</option>
+                          <option value="worker">작업자</option>
+                        </select>
+                        <button onClick={() => handleRemoveStaff(s.user_email)} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-100">삭제</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
