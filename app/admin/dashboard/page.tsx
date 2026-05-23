@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
   const fetchInquiries = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('inquiries').select('*').neq('deleted', true).order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('inquiries').select('*').or('deleted.is.null,deleted.eq.false').order('created_at', { ascending: false });
     if (!error && data) setInquiries(data);
     setLoading(false);
   };
