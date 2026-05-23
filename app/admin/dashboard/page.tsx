@@ -61,11 +61,12 @@ type Inquiry = {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'approval' | 'table' | 'calendar' | 'trash' | 'staff'>('inquiries');
+  const [activeMenu, setActiveMenu] = useState<'inquiries' | 'approval' | 'table' | 'calendar' | 'trash' | 'staff' | 'channels'>('inquiries');
   const [currentEmail, setCurrentEmail] = useState<string>('');
   const [currentRole, setCurrentRole] = useState<string>('worker');
   const [staffList, setStaffList] = useState<Array<{ user_email: string; role: string }>>([]);
   const [newStaffEmail, setNewStaffEmail] = useState<string>('');
+  const [channelSettings, setChannelSettings] = useState<Record<string, { person_name: string; tts_info: string }>>({});
   const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
   const [openWorkStatusFor, setOpenWorkStatusFor] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export default function DashboardPage() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [activeMenu]);
-  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); if (activeMenu === 'staff') fetchStaff(); }, [activeMenu]);
+  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); if (activeMenu === 'staff') fetchStaff(); if (activeMenu === 'channels') fetchChannelSettings(); }, [activeMenu]);
   useEffect(() => {
     const onClick = () => { setOpenWorkStatusFor(null); setOpenWorkTypeFor(null); };
     window.addEventListener('click', onClick);
@@ -142,6 +143,7 @@ export default function DashboardPage() {
     const { error } = await supabase.from('inquiries').update({ [fieldName]: next }).eq('id', id);
     if (error) { alert('오류: ' + error.message); return; }
     setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, [fieldName]: next } as Inquiry) : i));
+    if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? ({ ...prev, [fieldName]: next } as Inquiry) : null);
   };
 
   const handleReject = async (id: string) => {
@@ -238,6 +240,17 @@ export default function DashboardPage() {
     if (error) { alert('오류: ' + error.message); return; }
     fetchStaff();
   };
+  const fetchChannelSettings = async () => {
+    const { data } = await supabase.from('channel_settings').select('channel, person_name, tts_info');
+    const map: Record<string, { person_name: string; tts_info: string }> = {};
+    (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '' }; });
+    setChannelSettings(map);
+  };
+  const handleSaveChannelSetting = async (channel: string, person_name: string, tts_info: string) => {
+    const { error } = await supabase.from('channel_settings').upsert({ channel, person_name, tts_info }, { onConflict: 'channel' });
+    if (error) { alert('오류: ' + error.message); return; }
+    setChannelSettings(prev => ({ ...prev, [channel]: { person_name, tts_info } }));
+  };
   const canDeletePermanent = () => currentRole === 'master' || currentRole === 'admin';
   const handleEmptyTrash = async () => {
     if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다. 관리자에게 문의하세요.'); return; }
@@ -270,6 +283,7 @@ export default function DashboardPage() {
     const { error } = await supabase.from('inquiries').update({ work_types: next }).eq('id', id);
     if (error) { alert('오류: ' + error.message + '\n\nSupabase에 work_types 컬럼이 없습니다. 안내된 SQL을 실행해주세요.'); return; }
     setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, work_types: next } as Inquiry) : i));
+    if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? ({ ...prev, work_types: next } as Inquiry) : null);
   };
 
   const handleRowWorkStatus = async (id: string, channel: string, status: string) => {
@@ -279,6 +293,7 @@ export default function DashboardPage() {
     const { error } = await supabase.from('inquiries').update({ work_statuses: next }).eq('id', id);
     if (error) { alert('오류: ' + error.message + '\n\nSupabase에 work_statuses 컬럼이 없습니다. 안내된 SQL을 실행해주세요.'); return; }
     setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, work_statuses: next } as Inquiry) : i));
+    if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? ({ ...prev, work_statuses: next } as Inquiry) : null);
     setOpenWorkStatusFor(null);
   };
 
@@ -478,6 +493,9 @@ export default function DashboardPage() {
           </button>
           <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'calendar' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📅</span><span>캘린더</span>
+          </button>
+          <button onClick={() => setActiveMenu('channels')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'channels' ? 'bg-amber-100 text-amber-700' : 'text-slate-600 hover:bg-slate-100'}`}>
+            <span>🎤</span><span>채널 설정</span>
           </button>
           {currentEmail === 'tkddl@whrcompany.com' && (
             <button onClick={() => setActiveMenu('staff')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'staff' ? 'bg-purple-100 text-purple-700' : 'text-slate-600 hover:bg-slate-100'}`}>
@@ -700,7 +718,7 @@ export default function DashboardPage() {
                             : <span className="text-slate-300 text-xs">-</span>}
                         </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => handleDelete(inq.id, '표 보기')} className="text-slate-400 hover:text-red-500 text-xs" title="삭제">🗑️</button>
+                          <button onClick={() => handleDelete(inq.id, '표 보기')} className="text-slate-500 hover:text-red-500 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50">삭제</button>
                         </td>
                       </tr>
                       );
@@ -725,7 +743,10 @@ export default function DashboardPage() {
                         : <WorkTypeBadge inq={selectedDetail} />}
                     </div>
                   </div>
-                  <button onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }} className="text-slate-400 hover:text-slate-600 text-xl ml-2 shrink-0">×</button>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                <button onClick={() => { if (selectedDetail) { handleDelete(selectedDetail.id, '표 보기'); setSelectedDetail(null); setSelectedRowMeta(null); } }} className="px-3 py-1 text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg">삭제</button>
+                <button onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
+              </div>
                 </div>
                 <div className="p-5 space-y-2 border-b border-slate-100">
                   {[
@@ -856,6 +877,35 @@ export default function DashboardPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {activeMenu === 'channels' && (
+          <div>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">🎤 채널 설정</h1>
+              <p className="text-slate-500 text-sm">채널별 담당자와 TTS 설정을 관리하세요.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {['셀럽온', '미모지상주의', '쇼숏', '쇼잉'].map((ch) => {
+                const cur = channelSettings[ch] || { person_name: '', tts_info: '' };
+                return (
+                  <div key={ch} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                    <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-400"></span>{ch}</h2>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-slate-500 mb-1 block">담당자 이름</label>
+                        <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 mb-1 block">TTS</label>
+                        <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-2">입력 후 다른 곳을 클릭하면 자동 저장됩니다.</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
