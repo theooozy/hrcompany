@@ -10,17 +10,30 @@ const supabase = createClient(
 
 export default function HomePage() {
   const [formData, setFormData] = useState({
-    company: '',
+    brand: '',
+    upload_date: '',
+    channels: '',
+    product_link: '',
+    product_link_none: false,
+    material: '',
+    material_none: false,
+    secondary_use: '',
+    video_concept: '',
+    extra: '',
     name: '',
     email: '',
     phone: '',
-    message: '',
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const target = e.target as HTMLInputElement;
+    if (target.type === 'checkbox') {
+      setFormData({ ...formData, [target.name]: target.checked });
+    } else {
+      setFormData({ ...formData, [target.name]: target.value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,23 +42,36 @@ export default function HomePage() {
     try {
       const { error } = await supabase.from('inquiries').insert([
         {
-          company: formData.company,
+          brand: formData.brand,
+          upload_date: formData.upload_date,
+          channels: formData.channels,
+          product_link: formData.product_link_none ? '없음' : formData.product_link,
+          material: formData.material_none ? '없음' : formData.material,
+          secondary_use: formData.secondary_use,
+          video_concept: formData.video_concept,
+          extra: formData.extra,
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          message: formData.message,
           type: 'brand_ad',
+          status: 'pending',
         },
       ]);
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       setSubmitted(true);
     } catch (err) {
-      console.error(err);
+      console.error('Submit error:', err);
       alert('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
   };
+
+  const inputClass = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all bg-white";
+  const labelClass = "block text-sm font-semibold text-slate-700 mb-2";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -58,10 +84,7 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-bold text-slate-800">HR Company</span>
           </div>
-          <a
-            href="/admin/login"
-            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50"
-          >
+          <a href="/admin/login" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50">
             관리자 로그인
           </a>
         </div>
@@ -73,41 +96,25 @@ export default function HomePage() {
           <span>✦</span>
           <span>디지털 콘텐츠 마케팅 파트너</span>
         </div>
-
-        {/* Title - 우리는 작게(검정) / 광고대행사가 크게(파랑) / 아닙니다. 작게(검정) */}
         <div className="mb-12">
           <p className="text-2xl md:text-3xl font-semibold text-slate-800 mb-1">우리는</p>
-          <h1 className="text-6xl md:text-8xl font-extrabold text-blue-600 leading-none mb-2 tracking-tight">
-            광고대행사가
-          </h1>
+          <h1 className="text-6xl md:text-8xl font-extrabold text-blue-600 leading-none mb-2 tracking-tight">광고대행사가</h1>
           <p className="text-2xl md:text-3xl font-semibold text-slate-800">아닙니다.</p>
         </div>
-
-        {/* Description - no box, just text lines */}
         <div className="max-w-2xl mx-auto mb-12 space-y-3 text-center">
           <p className="text-slate-600 text-lg leading-relaxed">
             우리는 <strong className="text-slate-800">49개의 자체 숏폼 채널, 500만 구독자, 월 15억 조회수</strong> 규모의
           </p>
-          <p className="text-slate-600 text-lg leading-relaxed">
-            자체 트래픽을 바탕으로 기획부터 제작, 집행까지 모든 광고 과정을 직접 실행합니다.
-          </p>
-          <p className="text-slate-500 text-base leading-relaxed">
-            브랜드가 유저에게 자연스럽게 스며드는 콘텐츠를 만들고,
-          </p>
-          <p className="text-slate-500 text-base leading-relaxed">
-            콘텐츠를 통해 브랜드 가치를 극대화하는 <strong className="text-blue-600">디지털 콘텐츠 마케팅 파트너</strong>입니다.
-          </p>
+          <p className="text-slate-600 text-lg leading-relaxed">자체 트래픽을 바탕으로 기획부터 제작, 집행까지 모든 광고 과정을 직접 실행합니다.</p>
+          <p className="text-slate-500 text-base leading-relaxed">브랜드가 유저에게 자연스럽게 스며드는 콘텐츠를 만들고,</p>
+          <p className="text-slate-500 text-base leading-relaxed">콘텐츠를 통해 브랜드 가치를 극대화하는 <strong className="text-blue-600">디지털 콘텐츠 마케팅 파트너</strong>입니다.</p>
         </div>
-
-        <a
-          href="#inquiry"
-          className="inline-block px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-800 transition-all"
-        >
+        <a href="#inquiry" className="inline-block px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-800 transition-all">
           브랜드 광고 문의하기 →
         </a>
       </section>
 
-      {/* Stats Section - 3 individual cards */}
+      {/* Stats */}
       <section className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 text-white text-center shadow-lg">
@@ -125,43 +132,35 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Differentiators Section */}
+      {/* Differentiators */}
       <section className="max-w-6xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-slate-800 mb-3">핵심 차별점</h2>
           <p className="text-slate-500 text-lg">왜 HR Company인가요?</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-5">
-              <span className="text-2xl font-bold text-blue-600">1</span>
+          {[
+            { num: '1', color: 'blue', title: '영업 없이 콘텐츠에 집중', desc: '오직 콘텐츠 본질과 광고 성과에만 집중합니다.' },
+            { num: '2', color: 'indigo', title: '외주 없이 인하우스로 제작', desc: '기획·촬영·편집 모두 내부 팀이 직접 진행합니다.' },
+            { num: '3', color: 'sky', title: '모든 과정을 직접 제작', desc: '전 과정을 직접 수행하여 품질을 보장합니다.' },
+          ].map((item) => (
+            <div key={item.num} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
+              <div className={`w-12 h-12 rounded-xl bg-${item.color}-100 flex items-center justify-center mb-5`}>
+                <span className={`text-2xl font-bold text-${item.color}-600`}>{item.num}</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-3">{item.title}</h3>
+              <p className="text-slate-500 leading-relaxed">{item.desc}</p>
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">영업 없이 콘텐츠에 집중</h3>
-            <p className="text-slate-500 leading-relaxed">오직 콘텐츠 본질과 광고 성과에만 집중합니다. 불필요한 영업 비용 없이 순수하게 결과로 증명합니다.</p>
-          </div>
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center mb-5">
-              <span className="text-2xl font-bold text-indigo-600">2</span>
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">외주 없이 인하우스로 제작</h3>
-            <p className="text-slate-500 leading-relaxed">기획·촬영·편집 모두 내부 팀이 직접 진행합니다. 일관된 퀄리티와 빠른 피드백이 가능합니다.</p>
-          </div>
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
-            <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-5">
-              <span className="text-2xl font-bold text-sky-600">3</span>
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">모든 과정을 직접 제작</h3>
-            <p className="text-slate-500 leading-relaxed">콘텐츠 기획부터 집행까지 전 과정을 직접 수행하여 품질을 보장하고 책임 있는 결과를 만들어냅니다.</p>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Inquiry Form Section */}
+      {/* Inquiry Form */}
       <section id="inquiry" className="max-w-6xl mx-auto px-6 py-16">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-slate-800 mb-4">브랜드 광고 문의</h2>
-            <p className="text-slate-500 text-lg">궁금한 점이 있으시면 언제든지 문의해주세요.</p>
+            <p className="text-slate-500 text-lg">아래 양식을 작성하여 문의해주세요. 검토 후 빠르게 연락드리겠습니다.</p>
           </div>
 
           {submitted ? (
@@ -170,14 +169,9 @@ export default function HomePage() {
                 <span className="text-3xl">✅</span>
               </div>
               <h3 className="text-2xl font-bold text-slate-800 mb-3">문의가 접수되었습니다!</h3>
-              <p className="text-slate-500 text-lg mb-8">
-                빠른 시일 내에 담당자가 연락드리겠습니다.
-              </p>
+              <p className="text-slate-500 text-lg mb-8">빠른 시일 내에 담당자가 연락드리겠습니다.</p>
               <button
-                onClick={() => {
-                  setSubmitted(false);
-                  setFormData({ company: '', name: '', email: '', phone: '', message: '' });
-                }}
+                onClick={() => { setSubmitted(false); setFormData({ brand: '', upload_date: '', channels: '', product_link: '', product_link_none: false, material: '', material_none: false, secondary_use: '', video_concept: '', extra: '', name: '', email: '', phone: '' }); }}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md"
               >
                 새 문의 작성
@@ -185,77 +179,117 @@ export default function HomePage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    회사명 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleChange}
-                    required
-                    placeholder="회사명을 입력해주세요"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    담당자명 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="담당자 성함"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                  />
+
+              {/* 담당자 정보 */}
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+                  담당자 정보
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClass}>담당자명 <span className="text-red-500">*</span></label>
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="성함" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>이메일 <span className="text-red-500">*</span></label>
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="email@company.com" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>연락처</label>
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="010-0000-0000" className={inputClass} />
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    이메일 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="example@company.com"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">연락처</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="010-0000-0000"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-                  />
+
+              {/* 캠페인 기본 정보 */}
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                  캠페인 기본 정보
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>브랜드 <span className="text-red-500">*</span></label>
+                    <input type="text" name="brand" value={formData.brand} onChange={handleChange} required placeholder="예) 더블랙레이블(태양)" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>업로드 일시 <span className="text-red-500">*</span></label>
+                    <input type="text" name="upload_date" value={formData.upload_date} onChange={handleChange} required placeholder="예) ASAP / 5/25 18:00 이후" className={inputClass} />
+                  </div>
                 </div>
               </div>
+
+              {/* 희망 채널 */}
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">3</span>
+                  희망 채널
+                </h3>
+                <div>
+                  <label className={labelClass}>희망 채널 목록 <span className="text-red-500">*</span></label>
+                  <textarea name="channels" value={formData.channels} onChange={handleChange} required rows={4} placeholder={"예) 20건 (사전 10건 / 사후 10건)\n[사전] PopFlow, 숏믈리에, 유니랜드...\n[사후] 숏픽, 전국댓글자랑..."} className={inputClass + " resize-none"} />
+                </div>
+              </div>
+
+              {/* 소재 정보 */}
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">4</span>
+                  소재 정보
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>제품 링크</label>
+                    <div className="flex items-center gap-3 mb-2">
+                      <input type="checkbox" name="product_link_none" checked={formData.product_link_none} onChange={handleChange} id="product_link_none" className="w-4 h-4 rounded accent-blue-600" />
+                      <label htmlFor="product_link_none" className="text-sm text-slate-600 cursor-pointer">없음 (별도 파일 전달 예정)</label>
+                    </div>
+                    {!formData.product_link_none && (
+                      <input type="text" name="product_link" value={formData.product_link} onChange={handleChange} placeholder="예) https://... 또는 별도 엑셀파일 전달" className={inputClass} />
+                    )}
+                  </div>
+                  <div>
+                    <label className={labelClass}>활용 소재</label>
+                    <div className="flex items-center gap-3 mb-2">
+                      <input type="checkbox" name="material_none" checked={formData.material_none} onChange={handleChange} id="material_none" className="w-4 h-4 rounded accent-blue-600" />
+                      <label htmlFor="material_none" className="text-sm text-slate-600 cursor-pointer">없음 (별도 재전달 예정)</label>
+                    </div>
+                    {!formData.material_none && (
+                      <input type="text" name="material" value={formData.material} onChange={handleChange} placeholder="예) 공식계정 IG / YT 온드미디어" className={inputClass} />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 추가 정보 */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  문의 내용 <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
-                  rows={5}
-                  placeholder="광고 문의 내용을 자세히 작성해주세요. (예: 원하는 광고 유형, 예산 범위, 캠페인 일정 등)"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none"
-                />
+                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">5</span>
+                  추가 정보
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>2차 활용 여부</label>
+                    <select name="secondary_use" value={formData.secondary_use} onChange={handleChange} className={inputClass}>
+                      <option value="">선택해주세요</option>
+                      <option value="활용 가능">활용 가능</option>
+                      <option value="브랜드/아티스트 관련 모두 활용가능">브랜드/아티스트 관련 모두 활용가능</option>
+                      <option value="불가">불가</option>
+                      <option value="협의 필요">협의 필요</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>희망 영상 컨셉</label>
+                    <textarea name="video_concept" value={formData.video_concept} onChange={handleChange} rows={3} placeholder="예) 별도 재전달 예정 / 자연스러운 일상 녹여내기 등" className={inputClass + " resize-none"} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>기타 전달 사항</label>
+                    <textarea name="extra" value={formData.extra} onChange={handleChange} rows={3} placeholder="추가로 전달하실 내용을 자유롭게 작성해주세요." className={inputClass + " resize-none"} />
+                  </div>
+                </div>
               </div>
+
               <button
                 type="submit"
                 disabled={loading}
