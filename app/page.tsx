@@ -8,16 +8,25 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const CHANNELS = ['셀럽온', '미모지상주의', '쇼숏', '쇼잉'];
+
+const SECONDARY_USE_OPTIONS = [
+  '브랜드/아티스트 관련 모두 활용 가능',
+  '동의 안 받음',
+  '기타',
+];
+
 export default function HomePage() {
   const [formData, setFormData] = useState({
     brand: '',
     upload_date: '',
-    channels: '',
+    channels: [] as string[],
     product_link: '',
     product_link_none: false,
     material: '',
     material_none: false,
     secondary_use: '',
+    secondary_use_custom: '',
     video_concept: '',
     extra: '',
     name: '',
@@ -29,10 +38,18 @@ export default function HomePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const target = e.target as HTMLInputElement;
-    if (target.type === 'checkbox') {
-      setFormData({ ...formData, [target.name]: target.checked });
+    if (target.type === 'checkbox' && target.name === 'channels') {
+      const val = target.value;
+      setFormData(prev => ({
+        ...prev,
+        channels: prev.channels.includes(val)
+          ? prev.channels.filter(c => c !== val)
+          : [...prev.channels, val],
+      }));
+    } else if (target.type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [target.name]: target.checked }));
     } else {
-      setFormData({ ...formData, [target.name]: target.value });
+      setFormData(prev => ({ ...prev, [target.name]: target.value }));
     }
   };
 
@@ -40,34 +57,40 @@ export default function HomePage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from('inquiries').insert([
-        {
-          brand: formData.brand,
-          upload_date: formData.upload_date,
-          channels: formData.channels,
-          product_link: formData.product_link_none ? '없음' : formData.product_link,
-          material: formData.material_none ? '없음' : formData.material,
-          secondary_use: formData.secondary_use,
-          video_concept: formData.video_concept,
-          extra: formData.extra,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          type: 'brand_ad',
-          status: 'pending',
-        },
-      ]);
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
+      const secondaryUse = formData.secondary_use === '기타'
+        ? (formData.secondary_use_custom || '기타')
+        : formData.secondary_use;
+
+      const payload = {
+        brand: formData.brand,
+        upload_date: formData.upload_date,
+        channels: formData.channels.join(', '),
+        product_link: formData.product_link_none ? '없음' : formData.product_link,
+        material: formData.material_none ? '없음' : formData.material,
+        secondary_use: secondaryUse,
+        video_concept: formData.video_concept,
+        extra: formData.extra,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        type: 'brand_ad',
+        status: 'pending',
+      };
+
+      const { error } = await supabase.from('inquiries').insert([payload]);
+      if (error) throw error;
       setSubmitted(true);
-    } catch (err) {
-      console.error('Submit error:', err);
-      alert('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert('제출 오류: ' + msg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setSubmitted(false);
+    setFormData({ brand: '', upload_date: '', channels: [], product_link: '', product_link_none: false, material: '', material_none: false, secondary_use: '', secondary_use_custom: '', video_concept: '', extra: '', name: '', email: '', phone: '' });
   };
 
   const inputClass = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all bg-white";
@@ -75,7 +98,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-blue-100 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -84,17 +106,13 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-bold text-slate-800">HR Company</span>
           </div>
-          <a href="/admin/login" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50">
-            관리자 로그인
-          </a>
+          <a href="/admin/login" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50">관리자 로그인</a>
         </div>
       </header>
 
-      {/* Hero Section */}
       <section className="max-w-6xl mx-auto px-6 py-24 text-center">
         <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-12">
-          <span>✦</span>
-          <span>디지털 콘텐츠 마케팅 파트너</span>
+          <span>✦</span><span>디지털 콘텐츠 마케팅 파트너</span>
         </div>
         <div className="mb-12">
           <p className="text-2xl md:text-3xl font-semibold text-slate-800 mb-1">우리는</p>
@@ -102,19 +120,14 @@ export default function HomePage() {
           <p className="text-2xl md:text-3xl font-semibold text-slate-800">아닙니다.</p>
         </div>
         <div className="max-w-2xl mx-auto mb-12 space-y-3 text-center">
-          <p className="text-slate-600 text-lg leading-relaxed">
-            우리는 <strong className="text-slate-800">49개의 자체 숏폼 채널, 500만 구독자, 월 15억 조회수</strong> 규모의
-          </p>
+          <p className="text-slate-600 text-lg leading-relaxed">우리는 <strong className="text-slate-800">49개의 자체 숏폼 채널, 500만 구독자, 월 15억 조회수</strong> 규모의</p>
           <p className="text-slate-600 text-lg leading-relaxed">자체 트래픽을 바탕으로 기획부터 제작, 집행까지 모든 광고 과정을 직접 실행합니다.</p>
           <p className="text-slate-500 text-base leading-relaxed">브랜드가 유저에게 자연스럽게 스며드는 콘텐츠를 만들고,</p>
           <p className="text-slate-500 text-base leading-relaxed">콘텐츠를 통해 브랜드 가치를 극대화하는 <strong className="text-blue-600">디지털 콘텐츠 마케팅 파트너</strong>입니다.</p>
         </div>
-        <a href="#inquiry" className="inline-block px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-800 transition-all">
-          브랜드 광고 문의하기 →
-        </a>
+        <a href="#inquiry" className="inline-block px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-800 transition-all">브랜드 광고 문의하기 →</a>
       </section>
 
-      {/* Stats */}
       <section className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 text-white text-center shadow-lg">
@@ -132,7 +145,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Differentiators */}
       <section className="max-w-6xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-slate-800 mb-3">핵심 차별점</h2>
@@ -140,13 +152,13 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { num: '1', color: 'blue', title: '영업 없이 콘텐츠에 집중', desc: '오직 콘텐츠 본질과 광고 성과에만 집중합니다.' },
-            { num: '2', color: 'indigo', title: '외주 없이 인하우스로 제작', desc: '기획·촬영·편집 모두 내부 팀이 직접 진행합니다.' },
-            { num: '3', color: 'sky', title: '모든 과정을 직접 제작', desc: '전 과정을 직접 수행하여 품질을 보장합니다.' },
+            { num: '1', title: '영업 없이 콘텐츠에 집중', desc: '오직 콘텐츠 본질과 광고 성과에만 집중합니다.' },
+            { num: '2', title: '외주 없이 인하우스로 제작', desc: '기획·촬영·편집 모두 내부 팀이 직접 진행합니다.' },
+            { num: '3', title: '모든 과정을 직접 제작', desc: '전 과정을 직접 수행하여 품질을 보장합니다.' },
           ].map((item) => (
             <div key={item.num} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all">
-              <div className={`w-12 h-12 rounded-xl bg-${item.color}-100 flex items-center justify-center mb-5`}>
-                <span className={`text-2xl font-bold text-${item.color}-600`}>{item.num}</span>
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-5">
+                <span className="text-2xl font-bold text-blue-600">{item.num}</span>
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-3">{item.title}</h3>
               <p className="text-slate-500 leading-relaxed">{item.desc}</p>
@@ -155,12 +167,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Inquiry Form */}
       <section id="inquiry" className="max-w-6xl mx-auto px-6 py-16">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-slate-800 mb-4">브랜드 광고 문의</h2>
-            <p className="text-slate-500 text-lg">아래 양식을 작성하여 문의해주세요. 검토 후 빠르게 연락드리겠습니다.</p>
+            <p className="text-slate-500 text-lg">아래 양식을 작성하여 문의해주세요.</p>
           </div>
 
           {submitted ? (
@@ -170,20 +181,15 @@ export default function HomePage() {
               </div>
               <h3 className="text-2xl font-bold text-slate-800 mb-3">문의가 접수되었습니다!</h3>
               <p className="text-slate-500 text-lg mb-8">빠른 시일 내에 담당자가 연락드리겠습니다.</p>
-              <button
-                onClick={() => { setSubmitted(false); setFormData({ brand: '', upload_date: '', channels: '', product_link: '', product_link_none: false, material: '', material_none: false, secondary_use: '', video_concept: '', extra: '', name: '', email: '', phone: '' }); }}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md"
-              >
-                새 문의 작성
-              </button>
+              <button onClick={resetForm} className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md">새 문의 작성</button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 space-y-6">
+            <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 space-y-7">
 
-              {/* 담당자 정보 */}
-              <div className="pb-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+              {/* 1. 담당자 정보 */}
+              <div className="pb-6 border-b border-slate-100">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">1</span>
                   담당자 정보
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -202,10 +208,10 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* 캠페인 기본 정보 */}
-              <div className="pb-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+              {/* 2. 캠페인 기본 정보 */}
+              <div className="pb-6 border-b border-slate-100">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">2</span>
                   캠페인 기본 정보
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -215,46 +221,53 @@ export default function HomePage() {
                   </div>
                   <div>
                     <label className={labelClass}>업로드 일시 <span className="text-red-500">*</span></label>
-                    <input type="text" name="upload_date" value={formData.upload_date} onChange={handleChange} required placeholder="예) ASAP / 5/25 18:00 이후" className={inputClass} />
+                    <input type="date" name="upload_date" value={formData.upload_date} onChange={handleChange} required className={inputClass} />
                   </div>
                 </div>
               </div>
 
-              {/* 희망 채널 */}
-              <div className="pb-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">3</span>
-                  희망 채널
+              {/* 3. 희망 채널 */}
+              <div className="pb-6 border-b border-slate-100">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">3</span>
+                  희망 채널 <span className="text-xs font-normal text-slate-400 ml-1">(복수 선택 가능)</span>
                 </h3>
-                <div>
-                  <label className={labelClass}>희망 채널 목록 <span className="text-red-500">*</span></label>
-                  <textarea name="channels" value={formData.channels} onChange={handleChange} required rows={4} placeholder={"예) 20건 (사전 10건 / 사후 10건)\n[사전] PopFlow, 숏믈리에, 유니랜드...\n[사후] 숏픽, 전국댓글자랑..."} className={inputClass + " resize-none"} />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {CHANNELS.map(ch => (
+                    <label key={ch} className={`flex items-center gap-2 px-4 py-3 rounded-xl border cursor-pointer transition-all ${formData.channels.includes(ch) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}>
+                      <input type="checkbox" name="channels" value={ch} checked={formData.channels.includes(ch)} onChange={handleChange} className="w-4 h-4 accent-blue-600" />
+                      <span className="text-sm font-medium">{ch}</span>
+                    </label>
+                  ))}
                 </div>
+                {formData.channels.length > 0 && (
+                  <p className="mt-2 text-xs text-blue-600">선택됨: {formData.channels.join(', ')}</p>
+                )}
               </div>
 
-              {/* 소재 정보 */}
-              <div className="pb-4 border-b border-slate-100">
-                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">4</span>
+              {/* 4. 소재 정보 */}
+              <div className="pb-6 border-b border-slate-100">
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">4</span>
                   소재 정보
                 </h3>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>제품 링크</label>
-                    <div className="flex items-center gap-3 mb-2">
-                      <input type="checkbox" name="product_link_none" checked={formData.product_link_none} onChange={handleChange} id="product_link_none" className="w-4 h-4 rounded accent-blue-600" />
-                      <label htmlFor="product_link_none" className="text-sm text-slate-600 cursor-pointer">없음 (별도 파일 전달 예정)</label>
-                    </div>
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input type="checkbox" name="product_link_none" checked={formData.product_link_none} onChange={handleChange} className="w-4 h-4 accent-blue-600" />
+                      <span className="text-sm text-slate-500">없음 (별도 파일 전달 예정)</span>
+                    </label>
                     {!formData.product_link_none && (
                       <input type="text" name="product_link" value={formData.product_link} onChange={handleChange} placeholder="예) https://... 또는 별도 엑셀파일 전달" className={inputClass} />
                     )}
                   </div>
                   <div>
                     <label className={labelClass}>활용 소재</label>
-                    <div className="flex items-center gap-3 mb-2">
-                      <input type="checkbox" name="material_none" checked={formData.material_none} onChange={handleChange} id="material_none" className="w-4 h-4 rounded accent-blue-600" />
-                      <label htmlFor="material_none" className="text-sm text-slate-600 cursor-pointer">없음 (별도 재전달 예정)</label>
-                    </div>
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input type="checkbox" name="material_none" checked={formData.material_none} onChange={handleChange} className="w-4 h-4 accent-blue-600" />
+                      <span className="text-sm text-slate-500">없음 (별도 재전달 예정)</span>
+                    </label>
                     {!formData.material_none && (
                       <input type="text" name="material" value={formData.material} onChange={handleChange} placeholder="예) 공식계정 IG / YT 온드미디어" className={inputClass} />
                     )}
@@ -262,26 +275,44 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* 추가 정보 */}
+              {/* 5. 추가 정보 */}
               <div>
-                <h3 className="text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">5</span>
+                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">5</span>
                   추가 정보
                 </h3>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>2차 활용 여부</label>
-                    <select name="secondary_use" value={formData.secondary_use} onChange={handleChange} className={inputClass}>
-                      <option value="">선택해주세요</option>
-                      <option value="활용 가능">활용 가능</option>
-                      <option value="브랜드/아티스트 관련 모두 활용가능">브랜드/아티스트 관련 모두 활용가능</option>
-                      <option value="불가">불가</option>
-                      <option value="협의 필요">협의 필요</option>
-                    </select>
+                    <div className="space-y-2">
+                      {SECONDARY_USE_OPTIONS.map(opt => (
+                        <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="secondary_use"
+                            value={opt}
+                            checked={formData.secondary_use === opt}
+                            onChange={handleChange}
+                            className="w-4 h-4 accent-blue-600"
+                          />
+                          <span className="text-sm text-slate-700">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {formData.secondary_use === '기타' && (
+                      <textarea
+                        name="secondary_use_custom"
+                        value={formData.secondary_use_custom}
+                        onChange={handleChange}
+                        rows={2}
+                        placeholder="기타 내용을 직접 입력해주세요."
+                        className={inputClass + " resize-none mt-3"}
+                      />
+                    )}
                   </div>
                   <div>
                     <label className={labelClass}>희망 영상 컨셉</label>
-                    <textarea name="video_concept" value={formData.video_concept} onChange={handleChange} rows={3} placeholder="예) 별도 재전달 예정 / 자연스러운 일상 녹여내기 등" className={inputClass + " resize-none"} />
+                    <textarea name="video_concept" value={formData.video_concept} onChange={handleChange} rows={3} placeholder="예) 자연스러운 일상 녹여내기, 별도 재전달 예정 등" className={inputClass + " resize-none"} />
                   </div>
                   <div>
                     <label className={labelClass}>기타 전달 사항</label>
@@ -302,7 +333,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-white border-t border-slate-100 mt-8">
         <div className="max-w-6xl mx-auto px-6 py-10 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
