@@ -188,11 +188,18 @@ export default function DashboardPage() {
 
   const handleEmptyTrash = async () => {
     if (trashList.length === 0) { alert('휴지통이 비어있습니다.'); return; }
-    if (!confirm('휴지통의 모든 항목을 영구 삭제하시겠습니까? 복구가 불가능합니다.')) return;
+    if (!confirm(`휴지통의 ${trashList.length}개 항목을 영구 삭제하시겠습니까? 복구가 불가능합니다.`)) return;
     const ids = trashList.map(t => t.id);
-    const { error } = await supabase.from('inquiries').delete().in('id', ids);
-    if (!error) { fetchTrash(); }
-    else alert('오류: ' + error.message);
+    const { data, error } = await supabase.from('inquiries').delete().in('id', ids).select();
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    const deletedCount = (data || []).length;
+    if (deletedCount === 0) {
+      alert('삭제된 항목이 없습니다. 권한(RLS) 또는 정책을 확인해주세요.');
+    } else {
+      alert(`${deletedCount}개 항목이 영구 삭제되었습니다.`);
+    }
+    await fetchTrash();
+    await fetchInquiries();
   };
 
   const handleRowWorkType = async (id: string, channel: string, wtype: string) => {
@@ -336,10 +343,15 @@ export default function DashboardPage() {
         <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
         <textarea
           value={currentMemo}
-          onChange={(e) => setMemoValues(prev => ({ ...prev, [inq.id]: e.target.value }))}
+          onChange={(e) => {
+            setMemoValues(prev => ({ ...prev, [inq.id]: e.target.value }));
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+          }}
+          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
           rows={3}
           placeholder="메모를 입력하세요..."
-          className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white"
+          className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white overflow-hidden min-h-[80px]"
         />
         <button
           onClick={() => handleSaveMemo(inq.id)}
@@ -534,17 +546,17 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {inq.status !== 'approved' && (
-                        <button
-                          onClick={() => handleApproveSimple(inq.id)}
-                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
-                        >승인</button>
-                      )}
-                      {inq.status !== 'rejected' && (
-                        <button
-                          onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }}
-                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
-                        >거절</button>
+                      {(!inq.status || inq.status === 'pending') && (
+                        <>
+                          <button
+                            onClick={() => handleApproveSimple(inq.id)}
+                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
+                          >승인</button>
+                          <button
+                            onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }}
+                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
+                          >거절</button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -726,9 +738,15 @@ export default function DashboardPage() {
           <div>
             <div className="mb-6 flex items-center justify-between">
               <div><h1 className="text-2xl font-bold text-slate-800 mb-1">캘린더</h1><p className="text-slate-500 text-sm">승인된 광고 일정을 확인합니다.</p></div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentMonth(new Date())}
+                  className="px-4 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-all"
+                >오늘</button>
               <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
                 <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>주간</button>
                 <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'month' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>월간</button>
+              </div>
               </div>
             </div>
             {calendarView === 'month' ? (
