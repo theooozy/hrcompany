@@ -94,7 +94,7 @@ export default function HomePage() {
         </div>
         <div className="mb-12">
           <p className="text-2xl md:text-3xl font-semibold text-slate-800 mb-1">우리는</p>
-          <h1 className="text-6xl md:text-8xl font-extrabold text-blue-600 leading-none mb-2 tracking-tight">광고대행사<span className="text-2xl md:text-3xl font-semibold text-slate-800 align-middle">가</span></h1>
+          <h1 className="text-6xl md:text-8xl font-extrabold text-blue-600 leading-none mb-2 tracking-tight">광고대행사<span className="text-2xl md:text-3xl font-semibold text-slate-800 align-bottom">가</span></h1>
           <p className="text-2xl md:text-3xl font-semibold text-slate-800">아닙니다.</p>
         </div>
         <div className="max-w-2xl mx-auto mb-12 space-y-3 text-center">
