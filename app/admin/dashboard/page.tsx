@@ -78,6 +78,16 @@ export default function DashboardPage() {
   const [savingMemo, setSavingMemo] = useState<string | null>(null);
 
   useEffect(() => { checkAuth(); fetchInquiries(); }, []);
+  useEffect(() => {
+    const ch = supabase
+      .channel('inquiries-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inquiries' }, () => {
+        fetchInquiries();
+        if (activeMenu === 'trash') fetchTrash();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeMenu]);
   useEffect(() => { if (activeMenu === 'trash') fetchTrash(); }, [activeMenu]);
   useEffect(() => {
     const onClick = () => { setOpenWorkStatusFor(null); setOpenWorkTypeFor(null); };
@@ -188,18 +198,24 @@ export default function DashboardPage() {
 
   const handleEmptyTrash = async () => {
     if (trashList.length === 0) { alert('휴지통이 비어있습니다.'); return; }
-    if (!confirm(`휴지통의 ${trashList.length}개 항목을 영구 삭제하시겠습니까? 복구가 불가능합니다.`)) return;
+    if (!confirm('휴지통을 비우시겠습니까? 모든 항목이 영구 삭제되며 복구할 수 없습니다.')) return;
     const ids = trashList.map(t => t.id);
-    const { data, error } = await supabase.from('inquiries').delete().in('id', ids).select();
-    if (error) { alert('삭제 실패: ' + error.message); return; }
-    const deletedCount = (data || []).length;
-    if (deletedCount === 0) {
-      alert('삭제된 항목이 없습니다. 권한(RLS) 또는 정책을 확인해주세요.');
-    } else {
-      alert(`${deletedCount}개 항목이 영구 삭제되었습니다.`);
+    let okCount = 0;
+    let failMsg = '';
+    for (const id of ids) {
+      const { error } = await supabase.from('inquiries').delete().eq('id', id);
+      if (error) { failMsg = error.message; }
+      else okCount++;
     }
     await fetchTrash();
     await fetchInquiries();
+    if (okCount === ids.length) {
+      alert(`휴지통이 비워졌습니다. (${okCount}개 삭제)`);
+    } else if (okCount > 0) {
+      alert(`${okCount}/${ids.length}개 삭제됨. 일부 실패: ${failMsg}`);
+    } else {
+      alert('삭제에 실패했습니다. Supabase RLS 정책(delete)을 확인해주세요. 오류: ' + failMsg);
+    }
   };
 
   const handleRowWorkType = async (id: string, channel: string, wtype: string) => {
@@ -343,12 +359,19 @@ export default function DashboardPage() {
         <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
         <textarea
           value={currentMemo}
-          onChange={(e) => {
-            setMemoValues(prev => ({ ...prev, [inq.id]: e.target.value }));
-            e.target.style.height = 'auto';
-            e.target.style.height = e.target.scrollHeight + 'px';
+          onChange={(e) => setMemoValues(prev => ({ ...prev, [inq.id]: e.target.value }))}
+          onInput={(e) => {
+            const ta = e.currentTarget;
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
           }}
-          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+          ref={(el) => {
+            if (el && !el.dataset.sized) {
+              el.dataset.sized = '1';
+              el.style.height = 'auto';
+              el.style.height = el.scrollHeight + 'px';
+            }
+          }}
           rows={3}
           placeholder="메모를 입력하세요..."
           className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white overflow-hidden min-h-[80px]"
@@ -402,7 +425,7 @@ export default function DashboardPage() {
             {pendingCount > 0 && <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${activeMenu === 'inquiries' ? 'bg-white text-blue-600' : 'bg-blue-100 text-blue-600'}`}>{pendingCount}</span>}
           </button>
           <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'approval' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
-            <span>✅</span><span>승인 목록</span>
+            <span>✅</span><span>승인 목록</span>{(() => { const n = inquiries.filter(i => i.type === 'signup' && (!i.status || i.status === 'pending')).length; return n > 0 ? <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${activeMenu === 'approval' ? 'bg-white text-blue-600' : 'bg-red-500 text-white'}`}>{n}</span> : null; })()}
           </button>
           <button onClick={() => setActiveMenu('table')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
             <span>📊</span><span>표 보기</span>
@@ -769,7 +792,7 @@ export default function DashboardPage() {
                     const day = i + 1;
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const events = getApprovedForDate(dateStr);
-                    const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+                    const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
                     const dow = (firstDay + i) % 7;
                     return (
                       <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2">
@@ -810,7 +833,7 @@ export default function DashboardPage() {
                       {weekDays.map((d, i) => {
                         const dateStr = fmt(d);
                         const events = getApprovedForDate(dateStr);
-                        const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+                        const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
                         return (
                           <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3">
                             <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
