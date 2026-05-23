@@ -46,6 +46,7 @@ type Inquiry = {
   youtube_url?: string;
   business_number?: string;
   bank_account_image?: string;
+  ad_review_status?: string;
   number?: number;
   memo?: string;
   work_status?: string;
@@ -135,6 +136,11 @@ export default function DashboardPage() {
     }
   };
 
+  const handleAdReview = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
+    const { error } = await supabase.from('inquiries').update({ ad_review_status: status }).eq('id', id);
+    if (error) { alert('오류: ' + error.message); return; }
+    setInquiries(prev => prev.map(i => i.id === id ? { ...i, ad_review_status: status } : i));
+  };
   const fetchInquiries = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('inquiries').select('*').or('deleted.is.null,deleted.eq.false').order('created_at', { ascending: false });
@@ -497,7 +503,7 @@ export default function DashboardPage() {
   };
 
   const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
-  const pendingCount = inquiries.filter(i => i.status === 'pending' && i.type === 'signup').length;
+  const pendingCount = inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length;
   const approvedInquiries = inquiries.filter(i => i.status === 'approved' && i.scheduled_date);
   const tableRows = (() => {
     const rows: { inq: Inquiry; channel: string; conceptName: string; rowKey: string }[] = [];
@@ -586,16 +592,16 @@ export default function DashboardPage() {
                     {tab.key === 'all'
                       ? inquiries.filter(i => i.type === 'ad').length
                       : tab.key === 'pending'
-                      ? inquiries.filter(i => i.type === 'ad' && i.status !== 'approved' && i.status !== 'rejected').length
-                      : inquiries.filter(i => i.type === 'ad' && i.status === tab.key).length}
+                      ? inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length
+                      : inquiries.filter(i => i.type === 'ad' && i.ad_review_status === tab.key).length}
                   </span>
                 </button>
               ))}
             </div>
             {loading ? <div className="flex items-center justify-center h-40 text-slate-400">불러오는 중...</div>
-              : inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (i.status !== 'approved' && i.status !== 'rejected') : i.status === inquiryTab))).length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
+              : inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (!i.ad_review_status || i.ad_review_status === 'pending') : i.ad_review_status === inquiryTab))).length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
               : <div className="space-y-4">
-                {inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (i.status !== 'approved' && i.status !== 'rejected') : i.status === inquiryTab))).map((inq) => (
+                {inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (!i.ad_review_status || i.ad_review_status === 'pending') : i.ad_review_status === inquiryTab))).map((inq) => (
                   <div key={inq.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50" onClick={() => setExpanded(expanded === inq.id ? null : inq.id)}>
                       <div className="flex items-center gap-4">
@@ -627,6 +633,27 @@ export default function DashboardPage() {
                           <InfoRow label="담당자" value={inq.name + (inq.phone ? ' · ' + inq.phone : '')} />
                           <InfoRow label="이메일" value={inq.email} />
                           <InfoRow label="사업자번호" value={inq.business_number} />
+                          {inq.bank_account_image && (
+                            <div className="flex gap-2 md:col-span-2">
+                              <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">통장 사본</span>
+                              <a href={inq.bank_account_image} target="_blank" rel="noreferrer" download className="text-xs text-blue-600 hover:underline">📎 이미지 다운로드 / 보기</a>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 px-1 pt-2">
+                          <span className="text-xs text-slate-500">광고 문의 검토:</span>
+                          {(inq.ad_review_status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700">승인됨</span>}
+                          {(inq.ad_review_status === 'rejected') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-600">거절됨</span>}
+                          {(!inq.ad_review_status || inq.ad_review_status === 'pending') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
+                          {(!inq.ad_review_status || inq.ad_review_status === 'pending') && (
+                            <>
+                              <button onClick={() => handleAdReview(inq.id, 'approved')} className="ml-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold">승인</button>
+                              <button onClick={() => handleAdReview(inq.id, 'rejected')} className="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold">거절</button>
+                            </>
+                          )}
+                          {(inq.ad_review_status === 'approved' || inq.ad_review_status === 'rejected') && (
+                            <button onClick={() => handleAdReview(inq.id, 'pending')} className="ml-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">되돌리기</button>
+                          )}
                         </div>
                         <MemoSection inq={inq} />
                         {inq.status === 'pending' && (
