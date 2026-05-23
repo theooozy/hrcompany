@@ -13,6 +13,7 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -34,9 +35,14 @@ export default function AdminLogin() {
     setError('')
     if (password !== confirmPassword) { setError('비밀번호가 일치하지 않습니다.'); setLoading(false); return }
     if (password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); setLoading(false); return }
-    const { error } = await supabase.auth.signUp({ email, password })
+    if (!name.trim()) { setError('이름을 입력해주세요.'); setLoading(false); return }
+    const { data: signupData, error } = await supabase.auth.signUp({ email, password })
     if (error) setError('회원가입 실패: ' + error.message)
-    else { setMessage('회원가입 완료! 로그인해주세요.'); setMode('login') }
+    else {
+      await supabase.from('user_roles').insert({ user_email: email, name: name.trim(), role: 'worker', status: 'pending' })
+      setMessage('회원가입 신청 완료! 관리자의 승인을 기다려주세요.')
+      setMode('login')
+    }
     setLoading(false)
   }
 
@@ -95,6 +101,11 @@ export default function AdminLogin() {
 
         {mode === 'signup' && (
           <form onSubmit={handleSignup} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">이름</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="홍길동"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm transition-all" />
+            </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">이메일</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="admin@example.com"
