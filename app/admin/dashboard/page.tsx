@@ -656,7 +656,7 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
-                      {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브'].map(h => (
+                      {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브', ''].map(h => (
                         <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -698,6 +698,9 @@ export default function DashboardPage() {
                           {inq.youtube_url
                             ? <a href={inq.youtube_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-red-500 text-xs font-semibold hover:underline">▶ YT</a>
                             : <span className="text-slate-300 text-xs">-</span>}
+                        </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => handleDelete(inq.id, '표 보기')} className="text-slate-400 hover:text-red-500 text-xs" title="삭제">🗑️</button>
                         </td>
                       </tr>
                       );
