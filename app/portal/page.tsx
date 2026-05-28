@@ -6,11 +6,39 @@ import { useRouter } from 'next/navigation';
 type Session = { id: string; name: string; email: string };
 
 const CHANNEL_PRICES = [
-  { name: '셀럽온', price: 1000000, description: '셀럽 중심 콘텐츠 채널' },
-  { name: '미모지상주의', price: 1000000, description: '뷰티·라이프스타일 채널' },
-  { name: '쇼숏', price: 1000000, description: '쇼츠·릴스 전문 채널' },
-  { name: '쇼잉', price: 1000000, description: '쇼츠 콘텐츠 채널' },
+  // 국내 채널
+  { name: '셀럽온', platform: 'YouTube · IG · TikTok', subscribers: '1.16만 / 153 / 185', makePrice: 80, postPrice: 35, link: 'https://www.youtube.com/@셀럽온', featured: true },
+  { name: '찐예쁨', platform: 'YouTube · IG · TikTok', subscribers: '1.2만 / 900 / 1,562', makePrice: 70, postPrice: 30, link: 'https://www.youtube.com/@예쁘지고싶니' },
+  { name: '미모지상주의', platform: 'YouTube · IG · TikTok', subscribers: '6.21만 / 2 / 2,683', makePrice: 70, postPrice: 30, link: 'https://www.youtube.com/@예쁘지고싶으면구독' },
+  { name: '쇼잉', platform: 'YouTube · IG · TikTok', subscribers: '37.2만 / 6,505 / 793', makePrice: 75, postPrice: 30, link: 'https://www.youtube.com/@구독은너무좋아요' },
+  { name: '쇼숏', platform: 'YouTube · IG · TikTok', subscribers: '34.1만 / 9,835 / 5,206', makePrice: 75, postPrice: 30, link: 'https://www.youtube.com/@구독은항용은입니다' },
+  { name: '숏됐다', platform: 'YouTube · IG', subscribers: '25.3만 / 7,869', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독은필수인거알지' },
+  { name: '밈튜브', platform: 'YouTube · IG · TikTok', subscribers: '24.7만 / 2,469 / 1,735', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@mimtube777' },
+  { name: '핫스커버리', platform: 'YouTube · IG', subscribers: '21.3만 / 2,077', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@핫스커버리' },
+  { name: '유니랜드', platform: 'YouTube · IG · TikTok', subscribers: '17만 / 4,335 / 295', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@유니랜드' },
+  { name: '신기+탬', platform: 'YouTube · IG · TikTok', subscribers: '14.4만 / 1,759 / 2,343', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@이쁘지고싶으면구독' },
+  { name: '숏믈리에', platform: 'YouTube · IG', subscribers: '3.98만 / 419', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@숏믈리에' },
+  { name: '디어랩', platform: 'YouTube · IG', subscribers: '3.85만 / 1', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독하면행운입니다' },
+  { name: '숏픽', platform: 'YouTube · IG · TikTok', subscribers: '2.36만 / 148 / 55', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독을해야지' },
+  { name: '두근두근', platform: 'YouTube · IG', subscribers: '1.53만 / 941', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@두근두근좋아요' },
+  { name: '전국댓글자랑', platform: 'YouTube · IG', subscribers: '1.5만 / 355', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@전국댓글자랑' },
+  { name: '숏플레시', platform: 'YouTube', subscribers: '3.8만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독짱좋아요' },
+  { name: '출석체크', platform: 'YouTube · IG', subscribers: '7.4천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@쌈플래보는채널' },
+  // 일본 채널
+  { name: 'ワクワク', platform: 'YouTube · IG', subscribers: '16만 / 1만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@フォローわくわく', isJapan: true },
+  { name: 'スポログ', platform: 'YouTube · IG', subscribers: '7.7만 / 1만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@スポログ', isJapan: true },
+  { name: '笑慇の一秒', platform: 'YouTube', subscribers: '3.5만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@笑慇の一秒', isJapan: true },
+  { name: 'おもしろ塾', platform: 'YouTube', subscribers: '4.5천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@おもしろ塾', isJapan: true },
+  { name: '一瞬劇場', platform: 'YouTube', subscribers: '5.4천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@一瞬劇場', isJapan: true },
+  { name: '絆タイム', platform: 'YouTube', subscribers: '1만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@絆タイム', isJapan: true },
+  { name: 'チーズケーキ', platform: 'YouTube', subscribers: '4천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@チーズケーキ777', isJapan: true },
+  { name: 'オイシイワールド', platform: 'YouTube', subscribers: '3.5천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@オイシイワールド', isJapan: true },
+  { name: 'モグモグ', platform: 'YouTube', subscribers: '6.6천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@MoguMogu_Ham', isJapan: true },
+  { name: 'トレ韓', platform: 'YouTube · IG', subscribers: '1.9만 / 856', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@トレ韓', isJapan: true },
 ];
+
+const domesticChannels = CHANNEL_PRICES.filter(ch => !ch.isJapan);
+const japanChannels = CHANNEL_PRICES.filter(ch => ch.isJapan);
 
 export default function PortalPage() {
   const router = useRouter();
@@ -28,6 +56,30 @@ export default function PortalPage() {
   };
 
   if (!session) return null;
+
+  const ChannelCard = ({ ch }: { ch: typeof CHANNEL_PRICES[0] }) => (
+    <div className={`bg-white rounded-2xl p-5 shadow-sm border transition-all hover:shadow-md ${ch.featured ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-100'}`}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {ch.featured && <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">★ BEST</span>}
+          <h3 className="text-base font-bold text-slate-800">{ch.name}</h3>
+        </div>
+        <a href={ch.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-600 underline truncate max-w-[120px]">링크</a>
+      </div>
+      <p className="text-xs text-slate-400 mb-1">{ch.platform}</p>
+      <p className="text-xs text-slate-500 mb-3">구독자/팔로워: {ch.subscribers}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-blue-50 rounded-xl p-2 text-center">
+          <p className="text-xs text-slate-500 mb-0.5">제작+발행</p>
+          <p className="text-lg font-extrabold text-blue-600">{ch.makePrice}<span className="text-xs font-medium text-slate-500">만원</span></p>
+        </div>
+        <div className="bg-slate-50 rounded-xl p-2 text-center">
+          <p className="text-xs text-slate-500 mb-0.5">단순발행</p>
+          <p className="text-lg font-extrabold text-slate-700">{ch.postPrice}<span className="text-xs font-medium text-slate-500">만원</span></p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -52,18 +104,26 @@ export default function PortalPage() {
           <p className="text-slate-500">아래 단가를 확인하시고 진행을 원하시면 세부 정보를 입력해주세요.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          {CHANNEL_PRICES.map((ch) => (
-            <div key={ch.name} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-xl font-bold text-slate-800">{ch.name}</h3>
-                <span className="text-xs text-slate-400">{ch.description}</span>
-              </div>
-              <div className="text-3xl font-extrabold text-blue-600">
-                {ch.price.toLocaleString()}<span className="text-base text-slate-500 font-medium ml-1">원</span>
-              </div>
-            </div>
-          ))}
+        {/* 국내 채널 */}
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <span className="w-1 h-5 bg-blue-600 rounded-full inline-block"></span>
+            국내 채널
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {domesticChannels.map((ch) => <ChannelCard key={ch.name} ch={ch} />)}
+          </div>
+        </div>
+
+        {/* 일본 채널 */}
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <span className="w-1 h-5 bg-red-500 rounded-full inline-block"></span>
+            Japan Channels · 일본 채널
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {japanChannels.map((ch) => <ChannelCard key={ch.name} ch={ch} />)}
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl p-8 shadow-md border border-slate-100 text-center">
