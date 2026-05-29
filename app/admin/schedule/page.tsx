@@ -19,179 +19,216 @@ const STATUS_COLORS: {[key:string]:string} = {
   '영상 컨펌 완료': 'bg-emerald-100 text-emerald-700',
 }
 
+const CHANNELS = ['셀럽온','찐예쁨','미모지상주의','쇼잉','쇼숏','숏됐다','밈튜브','숏스커버리','유니랜드','신기+탬','숏믈리에','디어랩','숏픽','두근두근','전국댓글자랑','숏플레시','출석체크','ワクワク','スポログ','笑慇の一秒','おもしろ塾','一瞬劇場','絆タイム','チーズケーキ','オイシイワールド','モグモグ','トレ韓']
+
 export default function SchedulePage() {
   const [schedules, setSchedules] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string|null>(null)
   const [form, setForm] = useState({
-    product_name: '', brand_name: '', deadline: '', description: '콘티',
-    conti_name: '', video_name: '', channel: '', manager_name: '', status: '시작 전', youtube_url: ''
+    request_id: '', product_name: '', brand_name: '', conti_name: '',
+    video_name: '', channel: '', manager_name: '', status: '시작 전', youtube_url: ''
   })
   const router = useRouter()
 
   useEffect(() => {
     const checkLogin = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/admin/login'); return }
-      fetchAll()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) router.push('/admin/login')
     }
     checkLogin()
+    fetchAll()
   }, [])
 
   const fetchAll = async () => {
-    const [{ data: s }, { data: r }] = await Promise.all([
-      supabase.from('schedules').select('*').order('deadline', { ascending: true }),
-      supabase.from('brand_requests').select('*').eq('status', 'approved')
-    ])
+    const { data: s } = await supabase.from('schedules').select('*').order('deadline', { ascending: true })
+    const { data: r } = await supabase.from('inquiries').select('*').eq('status', '승인').order('created_at', { ascending: false })
     setSchedules(s || [])
     setRequests(r || [])
   }
 
-  const handleSave = async () => {
-    if (editId) {
-      await supabase.from('schedules').update(form).eq('id', editId)
-    } else {
-      await supabase.from('schedules').insert(form)
-    }
-    setShowForm(false); setEditId(null)
-    setForm({ product_name: '', brand_name: '', deadline: '', description: '콘티', conti_name: '', video_name: '', channel: '', manager_name: '', status: '시작 전', youtube_url: '' })
-    fetchAll()
-  }
-
-  const handleEdit = (s: any) => {
+  const openEdit = (s: any) => {
     setEditId(s.id)
-    setForm({ product_name: s.product_name||'', brand_name: s.brand_name||'', deadline: s.deadline ? s.deadline.slice(0,16) : '', description: s.description||'콘티', conti_name: s.conti_name||'', video_name: s.video_name||'', channel: s.channel||'', manager_name: s.manager_name||'', status: s.status||'시작 전', youtube_url: s.youtube_url||'' })
+    setForm({
+      request_id: s.request_id || '',
+      product_name: s.product_name || '',
+      brand_name: s.brand_name || '',
+      conti_name: s.conti_name || '',
+      video_name: s.video_name || '',
+      channel: s.channel || '',
+      manager_name: s.manager_name || '',
+      status: s.status || '시작 전',
+      youtube_url: s.youtube_url || '',
+    })
     setShowForm(true)
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editId) {
+      await supabase.from('schedules').update({
+        product_name: form.product_name,
+        brand_name: form.brand_name,
+        conti_name: form.conti_name,
+        video_name: form.video_name,
+        channel: form.channel,
+        manager_name: form.manager_name,
+        status: form.status,
+        youtube_url: form.youtube_url || null,
+      }).eq('id', editId)
+    }
+    setShowForm(false)
+    setEditId(null)
+    fetchAll()
+  }
+
   const handleDelete = async (id: string) => {
-    if (confirm('삭제할까요?')) { await supabase.from('schedules').delete().eq('id', id); fetchAll() }
+    if (!confirm('정말 삭제하시겠습니까?')) return
+    await supabase.from('schedules').delete().eq('id', id)
+    fetchAll()
+  }
+
+  const handleStatusChange = async (id: string, status: string) => {
+    await supabase.from('schedules').update({ status }).eq('id', id)
+    fetchAll()
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 bg-white shadow-md flex flex-col p-4">
-        <h1 className="text-lg font-bold mb-6 text-gray-800">관리자 메뉴</h1>
-        <nav className="flex flex-col gap-1 flex-1">
-          <button onClick={() => router.push('/admin/dashboard')} className="text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">📋 요청 관리</button>
-          <button className="text-left px-4 py-2 rounded-lg text-sm bg-gray-700 text-white font-medium">📊 스케줄표</button>
-          <button onClick={() => router.push('/admin/calendar')} className="text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">📅 캘린더</button>
-        </nav>
-        <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="text-sm text-gray-400 hover:text-gray-600 mt-4">로그아웃</button>
-      </aside>
+    <div className="flex h-screen bg-gray-100">
+      <nav className="w-52 bg-slate-800 text-white flex flex-col py-6 px-4 min-h-screen">
+        <div className="text-lg font-bold mb-8 px-2">관리자 메뉴</div>
+        <div className="flex flex-col gap-1 flex-1">
+          <button onClick={() => router.push('/admin/dashboard')} className="text-left px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-slate-700 transition">📋 요청 관리</button>
+          <button onClick={() => router.push('/admin/schedule')} className="text-left px-4 py-2 rounded-lg text-sm text-white bg-slate-700 font-semibold">📊 스케줄표</button>
+          <button onClick={() => router.push('/admin/calendar')} className="text-left px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-slate-700 transition">📅 캘린더</button>
+        </div>
+        <button
+          onClick={async () => { await supabase.auth.signOut(); router.push('/admin/login') }}
+          className="mt-4 text-sm text-slate-400 hover:text-white transition px-2 text-left"
+        >로그아웃</button>
+      </nav>
 
-      <main className="flex-1 p-6 overflow-x-auto">
+      <main className="flex-1 p-8 overflow-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">📊 스케줄표</h2>
-          <button onClick={() => { setShowForm(true); setEditId(null) }} className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm">+ 새 스케줄 추가</button>
+          <button
+            onClick={() => router.push('/admin/schedule/new')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold shadow hover:bg-blue-700 transition text-sm flex items-center gap-2"
+          >
+            <span className="text-lg leading-none">+</span> 새 스케줄 추가
+          </button>
         </div>
 
-        {showForm && (
+        {/* Edit Modal */}
+        {showForm && editId && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-bold mb-4">{editId ? '스케줄 수정' : '새 스케줄 추가'}</h3>
-              <div className="flex flex-col gap-3">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
+              <h3 className="text-lg font-bold mb-4">스케줄 수정</h3>
+              <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">승인된 브랜드에서 불러오기</label>
-                  <select className="border rounded-lg px-3 py-2 w-full text-sm mt-1"
-                    onChange={(e) => {
-                      const r = requests.find(r => r.id == e.target.value)
-                      if (r) setForm(f => ({ ...f, brand_name: r.company_name || r.brand_name, channel: r.channel, manager_name: r.manager_name }))
-                    }}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">승인된 브랜드에서 불러오기</label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    onChange={e => {
+                      const req = requests.find(r => r.id === e.target.value)
+                      if (req) setForm(f => ({ ...f, request_id: req.id, brand_name: req.brand_name || '', product_name: req.product_name || '', channel: req.channel || '' }))
+                    }}
+                  >
                     <option value="">선택 안함</option>
-                    {requests.map(r => <option key={r.id} value={r.id}>{r.company_name || r.brand_name}</option>)}
-                  </select>
-                </div>
-                {[
-                  { label: '제품명', key: 'product_name' },
-                  { label: '브랜드명', key: 'brand_name' },
-                  { label: '담당자', key: 'manager_name' },
-                  { label: '채널', key: 'channel' },
-                ].map(({ label, key }) => (
-                  <div key={key}>
-                    <label className="text-sm font-medium text-gray-700">{label}</label>
-                    <input type="text" value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1" />
-                  </div>
-                ))}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">데드라인</label>
-                  <input type="datetime-local" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">설명 유형</label>
-                  <select value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1">
-                    <option>콘티</option><option>영상</option><option>단순</option>
+                    {requests.map(r => (
+                      <option key={r.id} value={r.id}>{r.brand_name} - {r.product_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">콘티 이름</label>
-                  <input type="text" value={form.conti_name} onChange={e => setForm(f => ({ ...f, conti_name: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.product_name} onChange={e => setForm(f => ({ ...f, product_name: e.target.value }))} required />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">영상 이름</label>
-                  <input type="text" value={form.video_name} onChange={e => setForm(f => ({ ...f, video_name: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">브랜드명</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.brand_name} onChange={e => setForm(f => ({ ...f, brand_name: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">상태</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1">
-                    {STATUSES.map(s => <option key={s}>{s}</option>)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.manager_name} onChange={e => setForm(f => ({ ...f, manager_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">채널</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))}>
+                    <option value="">채널 선택</option>
+                    {CHANNELS.map(ch => <option key={ch} value={ch}>{ch}</option>)}
                   </select>
                 </div>
-                {form.status === '영상 컨펌 완료' && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">유튜브 링크</label>
-                    <input type="url" value={form.youtube_url} onChange={e => setForm(f => ({ ...f, youtube_url: e.target.value }))} className="border rounded-lg px-3 py-2 w-full text-sm mt-1" placeholder="https://youtube.com/..." />
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button onClick={handleSave} className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm flex-1">저장</button>
-                <button onClick={() => { setShowForm(false); setEditId(null) }} className="bg-gray-200 px-4 py-2 rounded-lg text-sm flex-1">취소</button>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
+                  <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                    {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">유튜브 URL</label>
+                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.youtube_url} onChange={e => setForm(f => ({ ...f, youtube_url: e.target.value }))} placeholder="https://youtube.com/..." />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => { setShowForm(false); setEditId(null) }} className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50">취소</button>
+                  <button type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">저장</button>
+                </div>
+              </form>
             </div>
           </div>
         )}
 
-        <div className="overflow-x-auto rounded-xl shadow">
-          <table className="min-w-full bg-white text-sm border-collapse">
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow overflow-x-auto">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-700 text-white">
-                {['No', '제품명', '데드라인', '브랜드', '설명', '콘티', '영상', '채널', '상태', '담당자', ''].map(h => (
-                  <th key={h} className="px-3 py-3 text-left whitespace-nowrap font-medium border-r border-gray-600 last:border-0">{h}</th>
-                ))}
+              <tr className="border-b bg-gray-50">
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">No</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">제품명</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">데드라인</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">브랜드</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">설명</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">콘티</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">영상</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">채널</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">상태</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">담당자</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600">액션</th>
               </tr>
             </thead>
             <tbody>
-              {schedules.map((s, i) => (
-                <tr key={s.id} className={`border-b hover:bg-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                  <td className="px-3 py-2 text-gray-400 border-r">{i + 1}</td>
-                  <td className="px-3 py-2 font-medium border-r whitespace-nowrap">{s.product_name}</td>
-                  <td className="px-3 py-2 text-gray-600 border-r whitespace-nowrap">
-                    {s.deadline ? new Date(s.deadline).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-                  </td>
-                  <td className="px-3 py-2 border-r">
-                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">{s.brand_name}</span>
-                  </td>
-                  <td className="px-3 py-2 border-r">
-                    <span className={`px-2 py-0.5 rounded text-xs ${s.description === '콘티' ? 'bg-purple-100 text-purple-700' : s.description === '영상' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>{s.description}</span>
-                  </td>
-                  <td className="px-3 py-2 border-r text-gray-600">{s.conti_name || '-'}</td>
-                  <td className="px-3 py-2 border-r text-gray-600">{s.video_name || '-'}</td>
-                  <td className="px-3 py-2 border-r text-gray-600">{s.channel || '-'}</td>
-                  <td className="px-3 py-2 border-r">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] || 'bg-gray-100 text-gray-600'}`}>{s.status}</span>
-                  </td>
-                  <td className="px-3 py-2 border-r text-gray-600 whitespace-nowrap">{s.manager_name || '-'}</td>
-                  <td className="px-3 py-2 flex gap-1">
-                    <button onClick={() => handleEdit(s)} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">수정</button>
-                    <button onClick={() => handleDelete(s.id)} className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">삭제</button>
-                    {s.youtube_url && <a href={s.youtube_url} target="_blank" className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">▶</a>}
-                  </td>
-                </tr>
-              ))}
-              {schedules.length === 0 && (
+              {schedules.length === 0 ? (
                 <tr><td colSpan={11} className="text-center py-12 text-gray-400">스케줄이 없어요. + 새 스케줄 추가 버튼을 눌러주세요.</td></tr>
+              ) : (
+                schedules.map((s, i) => (
+                  <tr key={s.id} className="border-b hover:bg-gray-50 transition">
+                    <td className="px-4 py-3 text-gray-500">{i + 1}</td>
+                    <td className="px-4 py-3 font-medium">{s.product_name}</td>
+                    <td className="px-4 py-3 text-gray-500">{s.deadline ? new Date(s.deadline).toLocaleDateString('ko-KR') : '-'}</td>
+                    <td className="px-4 py-3">{s.brand_name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{s.conti_name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{s.conti_name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{s.video_name || '-'}</td>
+                    <td className="px-4 py-3">{s.channel || '-'}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={s.status || '시작 전'}
+                        onChange={e => handleStatusChange(s.id, e.target.value)}
+                        className={`text-xs px-2 py-1 rounded-full font-semibold border-0 cursor-pointer ${STATUS_COLORS[s.status] || 'bg-gray-100 text-gray-600'}`}
+                      >
+                        {STATUSES.map(st => <option key={st} value={st}>{st}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">{s.manager_name || '-'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => openEdit(s)} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition">수정</button>
+                        <button onClick={() => handleDelete(s.id)} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition">삭제</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
