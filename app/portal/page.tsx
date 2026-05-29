@@ -104,6 +104,17 @@ export default function PortalPage() {
           <p className="text-slate-500">아래 단가를 확인하시고 진행을 원하시면 세부 정보를 입력해주세요.</p>
         </div>
 
+        <div className="bg-white rounded-2xl p-8 shadow-md border border-slate-100 text-center">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">진행을 원하시나요?</h2>
+          <p className="text-slate-500 mb-6">세부 정보를 입력해주시면 담당자가 곧 연락드립니다.</p>
+          <a
+            href="/portal/details"
+            className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
+          >
+            세부 정보 입력하기 →
+          </a>
+        </div>
+
         {/* 국내 채널 */}
         <div className="mb-10">
           <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -126,16 +137,6 @@ export default function PortalPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-8 shadow-md border border-slate-100 text-center">
-          <h2 className="text-xl font-bold text-slate-800 mb-2">진행을 원하시나요?</h2>
-          <p className="text-slate-500 mb-6">세부 정보를 입력해주시면 담당자가 곧 연락드립니다.</p>
-          <a
-            href="/portal/details"
-            className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
-          >
-            세부 정보 입력하기 →
-          </a>
-        </div>
       </section>
     </div>
   );
