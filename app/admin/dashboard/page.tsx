@@ -106,7 +106,10 @@ const [showAddPanel, setShowAddPanel] = useState(false)
         fetchManualSchedules();
         if (activeMenu === 'trash') fetchTrash();
       })
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => {
+fetchManualSchedules();
+})
+.subscribe();
     fetchInquiries();
     fetchManualSchedules();
     return () => { supabase.removeChannel(ch); };
@@ -269,6 +272,45 @@ const [showAddPanel, setShowAddPanel] = useState(false)
     fetchTrash();
   };
 
+  const handleScheduleDelete = async (id: string) => {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+    const { error } = await supabase.from('schedules').delete().eq('id', id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    fetchManualSchedules();
+  };
+
+  const handleScheduleWorkStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from('schedules').update({ work_status: status }).eq('id', id);
+    if (!error) {
+      setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_status: status } : s));
+      if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
+        setSelectedDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
+      }
+    }
+    setStatusDropdown(null);
+  };
+
+  const handleScheduleWorkType = async (id: string, wtype: string) => {
+    const { error } = await supabase.from('schedules').update({ work_type: wtype }).eq('id', id);
+    if (!error) {
+      setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_type: wtype } : s));
+      if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
+        setSelectedDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
+      }
+    }
+  };
+
+  const handleScheduleMemo = async (id: string) => {
+    const memo = memoValues[id] ?? '';
+    const { error } = await supabase.from('schedules').update({ memo }).eq('id', id);
+    if (!error) {
+      setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, memo } : s));
+      if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
+        setSelectedDetail((prev: any) => prev ? { ...prev, memo } : null);
+      }
+    }
+  };
+
   const handleRestore = async (id: string) => {
     const { error } = await supabase.from('inquiries').update({ deleted: false, deleted_at: null }).eq('id', id);
     if (!error) { fetchTrash(); fetchInquiries(); }
@@ -423,7 +465,7 @@ const [showAddPanel, setShowAddPanel] = useState(false)
           <div className="absolute left-0 top-8 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 w-44 space-y-1" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs text-slate-400 font-semibold mb-2 px-1">상태 선택</p>
             {WORK_STATUSES.map(s => (
-              <button key={s.label} onClick={() => handleWorkStatus(inq.id, s.label)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}>
+              <button key={s.label} onClick={() => inq._source === 'schedule' ? handleScheduleWorkStatus(inq.id, s.label) : handleWorkStatus(inq.id, s.label)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}>
                 <span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
                 {s.label}
               </button>
@@ -439,7 +481,7 @@ const [showAddPanel, setShowAddPanel] = useState(false)
     return (
       <div className="flex gap-1">
         {WORK_TYPES.map(t => (
-          <button key={t} onClick={(e) => { e.stopPropagation(); handleWorkType(inq.id, t); }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${wt === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+          <button key={t} onClick={(e) => { e.stopPropagation(); inq._source === 'schedule' ? handleScheduleWorkType(inq.id, t) : handleWorkType(inq.id, t); }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${wt === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
             {t}
           </button>
         ))}
@@ -452,7 +494,7 @@ const [showAddPanel, setShowAddPanel] = useState(false)
     return (
       <div className="flex gap-1">
         {WORK_TYPES.map(t => (
-          <button key={t} onClick={(e) => { e.stopPropagation(); handleRowWorkType(inq.id, channel, t); }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${wt === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+          <button key={t} onClick={(e) => { e.stopPropagation(); inq._source === 'schedule' ? handleScheduleWorkType(inq.id, t) : handleRowWorkType(inq.id, channel, t); }} className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${wt === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
             {t}
           </button>
         ))}
@@ -484,7 +526,7 @@ const [showAddPanel, setShowAddPanel] = useState(false)
             el.style.left = rect.left + 'px';
           }}>
             {WORK_STATUSES.map(s => (
-              <button key={s.label} onClick={(e) => { e.stopPropagation(); handleRowWorkStatus(inq.id, channel, s.label); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}>
+              <button key={s.label} onClick={(e) => { e.stopPropagation(); inq._source === 'schedule' ? handleScheduleWorkStatus(inq.id, s.label) : handleRowWorkStatus(inq.id, channel, s.label); }} className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}>
                 <span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
                 {s.label}
               </button>
@@ -520,7 +562,7 @@ const [showAddPanel, setShowAddPanel] = useState(false)
           className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white overflow-hidden min-h-[80px]"
         />
         <button
-          onClick={() => handleSaveMemo(inq.id)}
+          onClick={() => inq._source === 'schedule' ? handleScheduleMemo(inq.id) : handleSaveMemo(inq.id)}
           disabled={savingMemo === inq.id}
           className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
         >
@@ -545,7 +587,32 @@ const [showAddPanel, setShowAddPanel] = useState(false)
         rows.push({ inq, channel: ch, conceptName: '컨셉' + brandCounter[brandKey], rowKey: inq.id + '__' + ch });
       });
     });
-    return rows;
+    // schedules 테이블 항목도 추가 (캘린더-표 연동)
+  const scheduleRows: { inq: any; channel: string; conceptName: string; rowKey: string }[] = [];
+  const filteredSchedules = manualSchedules.filter(s => !selectedCalendarDate || (s.deadline && s.deadline.startsWith(selectedCalendarDate)));
+  filteredSchedules.forEach((s) => {
+    scheduleRows.push({
+      inq: {
+        ...s,
+        id: s.id,
+        brand: s.brand_name || s.product_name || '-',
+        channels: s.channel || '-',
+        name: s.manager_name || '-',
+        status: 'approved',
+        scheduled_date: s.deadline ? s.deadline.substring(0, 10) : null,
+        work_status: s.work_status || '시작 전',
+        work_type: s.work_type || '콘티',
+        youtube_url: s.youtube_url || null,
+        memo: s.memo || null,
+        _source: 'schedule',
+        _scheduleId: s.id,
+      },
+      channel: s.channel || '-',
+      conceptName: s.product_name || s.brand_name || '-',
+      rowKey: 'schedule__' + s.id,
+    });
+  });
+  return [...rows, ...scheduleRows];
   })();
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
@@ -886,7 +953,17 @@ className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-2 shrink-0">
-                <button onClick={() => { if (selectedDetail) { handleDelete(selectedDetail.id, '표 보기'); setSelectedDetail(null); setSelectedRowMeta(null); } }} className="px-3 py-1 text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg">삭제</button>
+                <button onClick={() => {
+if (selectedDetail) {
+if ((selectedDetail as any)._source === 'schedule') {
+handleScheduleDelete((selectedDetail as any)._scheduleId || selectedDetail.id);
+} else {
+handleDelete(selectedDetail.id, '표 보기');
+}
+setSelectedDetail(null);
+setSelectedRowMeta(null);
+}
+}} className="px-3 py-1 text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg">삭제</button>
                 <button onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
               </div>
                 </div>
