@@ -88,6 +88,7 @@ export default function DashboardPage() {
   const [showAddPanel, setShowAddPanel] = useState(false)
   const [addPanelLoading, setAddPanelLoading] = useState(false)
   const [addPanelError, setAddPanelError] = useState('')
+  const [manualSchedules, setManualSchedules] = useState<any[]>([])
   const [addPanelForm, setAddPanelForm] = useState({
     product_name: '', brand_name: '', channel: '', manager_name: '',
     deadline: '', status: '진행중', youtube_url: '',
@@ -101,6 +102,7 @@ export default function DashboardPage() {
       .channel('inquiries-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inquiries' }, () => {
         fetchInquiries();
+        fetchManualSchedules();
         if (activeMenu === 'trash') fetchTrash();
       })
       .subscribe();
@@ -163,7 +165,12 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  const handleApprove = async (inquiry: Inquiry) => {
+   const fetchManualSchedules = async () => {
+    const { data, error } = await supabase.from('schedules').select('*').order('created_at', { ascending: false });
+    if (!error && data) setManualSchedules(data);
+  };
+
+ const handleApprove = async (inquiry: Inquiry) => {
     const date = selectedDates[inquiry.id] || inquiry.scheduled_date;
     if (!date) { alert('날짜를 먼저 선택해주세요.'); return; }
     const { error } = await supabase.from('inquiries').update({ status: 'approved', scheduled_date: date }).eq('id', inquiry.id);
@@ -381,7 +388,10 @@ export default function DashboardPage() {
     return { firstDay: new Date(y, m, 1).getDay(), daysInMonth: new Date(y, m + 1, 0).getDate(), year: y, month: m };
   };
 
-  const getApprovedForDate = (dateStr: string) => inquiries.filter(i => i.status === 'approved' && i.scheduled_date === dateStr);
+  const getApprovedForDate = (dateStr: string) => [
+    ...inquiries.filter(i => i.status === 'approved' && i.scheduled_date === dateStr).map(i => ({ ...i, _source: 'inquiry' })),
+    ...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, brand_name: s.brand_name, _source: 'schedule' }))
+  ];
   const formatDate = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
   const formatDateTime = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
 
@@ -1288,7 +1298,7 @@ export default function DashboardPage() {
               </div>
               <div className="px-6 py-4 border-t flex gap-3">
                 <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }) }} className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">취소</button>
-                <button disabled={addPanelLoading} onClick={async () => { if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; } if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; } setAddPanelLoading(true); setAddPanelError(''); const { error } = await supabase.from('schedules').insert([{ product_name: addPanelForm.product_name, brand_name: addPanelForm.brand_name || null, channel: addPanelForm.channel || null, manager_name: addPanelForm.manager_name || null, deadline: addPanelForm.deadline, status: addPanelForm.status, youtube_url: addPanelForm.youtube_url || null, email: addPanelForm.email || null, phone: addPanelForm.phone || null, business_number: addPanelForm.business_number || null, product_link: addPanelForm.product_link || null, material: addPanelForm.material || null, secondary_use: addPanelForm.secondary_use || null, work_type: addPanelForm.work_type || null, work_status: addPanelForm.work_status || null }]); setAddPanelLoading(false); if (error) { setAddPanelError('저장 실패: ' + error.message); } else { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }); } }} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
+                <button disabled={addPanelLoading} onClick={async () => { if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; } if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; } setAddPanelLoading(true); setAddPanelError(''); const { error } = await supabase.from('schedules').insert([{ product_name: addPanelForm.product_name, brand_name: addPanelForm.brand_name || null, channel: addPanelForm.channel || null, manager_name: addPanelForm.manager_name || null, deadline: addPanelForm.deadline, status: addPanelForm.status, youtube_url: addPanelForm.youtube_url || null, email: addPanelForm.email || null, phone: addPanelForm.phone || null, business_number: addPanelForm.business_number || null, product_link: addPanelForm.product_link || null, material: addPanelForm.material || null, secondary_use: addPanelForm.secondary_use || null, work_type: addPanelForm.work_type || null, work_status: addPanelForm.work_status || null }]); setAddPanelLoading(false); if (error) { setAddPanelError('저장 실패: ' + error.message); } else { fetchManualSchedules(); setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }); } }} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
               </div>
             </div>
           </>
