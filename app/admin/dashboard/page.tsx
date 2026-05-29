@@ -1059,6 +1059,12 @@ export default function DashboardPage() {
                   onClick={() => setCurrentMonth(new Date())}
                   className="px-4 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-all"
                 >오늘</button>
+                <button
+                  onClick={() => router.push('/admin/schedule/new')}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"
+                >
+                  <span className="text-base leading-none">+</span> 일정 추가
+                </button>
               <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
                 <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>주간</button>
                 <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'month' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>월간</button>
