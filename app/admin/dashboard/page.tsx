@@ -85,7 +85,8 @@ export default function DashboardPage() {
   const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
   const [memoValues, setMemoValues] = useState<Record<string, string>>({});
   const [savingMemo, setSavingMemo] = useState<string | null>(null);
-  const [showAddPanel, setShowAddPanel] = useState(false)
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null)
+const [showAddPanel, setShowAddPanel] = useState(false)
   const [addPanelLoading, setAddPanelLoading] = useState(false)
   const [addPanelError, setAddPanelError] = useState('')
   const [manualSchedules, setManualSchedules] = useState<any[]>([])
@@ -535,7 +536,7 @@ export default function DashboardPage() {
   const tableRows = (() => {
     const rows: { inq: Inquiry; channel: string; conceptName: string; rowKey: string }[] = [];
     const brandCounter: Record<string, number> = {};
-    [...approvedInquiries].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach(inq => {
+    [...approvedInquiries].filter(inq => !selectedCalendarDate || inq.scheduled_date === selectedCalendarDate).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach(inq => {
       const chans = (inq.channels || '').split(',').map(c => c.trim()).filter(Boolean);
       const list = chans.length ? chans : ['-'];
       list.forEach(ch => {
@@ -791,7 +792,24 @@ export default function DashboardPage() {
           <div className="relative">
             <div className="w-full">
               <div className="mb-6 flex items-center justify-between">
-                <div><h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1><p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p></div>
+                <div>
+<h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1>
+<p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p>
+{selectedCalendarDate && (
+<div className="mt-2 flex items-center gap-2">
+<span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-700 font-medium">
+<span>📅</span>
+{formatDate(selectedCalendarDate)} 필터 적용 중
+</span>
+<button
+onClick={() => setSelectedCalendarDate(null)}
+className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
+>
+✕ 필터 해제
+</button>
+</div>
+)}
+</div>
                 <div className="flex gap-2">
                   <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
                   <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
@@ -1118,11 +1136,11 @@ export default function DashboardPage() {
                     const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
                     const dow = (firstDay + i) % 7;
                     return (
-                      <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2">
+                      <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
                         <div className={`text-xs font-semibold mb-1 ${isToday ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{day}</div>
                         <div className="space-y-1">
                           {events.slice(0, 3).map(ev => (
-                            <div key={ev.id} onClick={() => { setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200" title={ev.brand}>{ev.brand}</div>
+                            <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200" title={ev.brand}>{ev.brand}</div>
                           ))}
                           {events.length > 3 && <div className="text-[10px] text-slate-400">+{events.length - 3}</div>}
                         </div>
@@ -1158,11 +1176,11 @@ export default function DashboardPage() {
                         const events = getApprovedForDate(dateStr);
                         const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
                         return (
-                          <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3">
+                          <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
                             <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
                             <div className="space-y-1.5">
                               {events.map(ev => (
-                                <div key={ev.id} onClick={() => { setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-200" title={ev.brand}>
+                                <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-200" title={ev.brand}>
                                   <div className="font-semibold truncate">{ev.brand}</div>
                                   <div className="text-[10px] text-blue-500 truncate">{ev.channels || ''}</div>
                                 </div>
