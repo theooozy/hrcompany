@@ -771,7 +771,10 @@ export default function DashboardPage() {
             <div className="w-full">
               <div className="mb-6 flex items-center justify-between">
                 <div><h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1><p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p></div>
-                <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+                <div className="flex gap-2">
+                  <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+                  <button onClick={() => router.push('/admin/schedule/new')} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
+                </div>
               </div>
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
                 <table className="w-full text-sm">
