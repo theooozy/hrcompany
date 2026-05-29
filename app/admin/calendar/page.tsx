@@ -19,7 +19,6 @@ type Schedule = {
   deadline: string
   status: string
   youtube_url?: string
-  is_manual?: boolean
 }
 
 type NewSchedule = {
@@ -88,7 +87,7 @@ export default function CalendarPage() {
   }
 
   const openAddModal = (dateStr?: string) => {
-    setAddForm({ ...emptyForm, deadline: dateStr || '' })
+    setAddForm({ ...emptyForm, deadline: dateStr ? dateStr + 'T09:00' : '' })
     setAddError('')
     setShowAddModal(true)
   }
@@ -105,16 +104,16 @@ export default function CalendarPage() {
     }
     setAddLoading(true)
     setAddError('')
-    const { error } = await supabase.from('schedules').insert([{
+    const payload: Record<string, string | null> = {
       product_name: addForm.product_name,
-      brand_name: addForm.brand_name,
-      channel: addForm.channel,
-      manager_name: addForm.manager_name,
+      brand_name: addForm.brand_name || null,
+      channel: addForm.channel || null,
+      manager_name: addForm.manager_name || null,
       deadline: addForm.deadline,
       status: addForm.status,
       youtube_url: addForm.youtube_url || null,
-      is_manual: true,
-    }])
+    }
+    const { error } = await supabase.from('schedules').insert([payload])
     setAddLoading(false)
     if (error) {
       setAddError('저장 중 오류: ' + error.message)
@@ -188,7 +187,7 @@ export default function CalendarPage() {
                   </div>
                   <div className="flex flex-col gap-0.5">
                     {daySchedules.slice(0, 3).map(s => (
-                      <div key={s.id} className={`text-xs px-1 py-0.5 rounded truncate ${s.is_manual ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <div key={s.id} className="text-xs px-1 py-0.5 rounded truncate bg-blue-100 text-blue-700">
                         {s.product_name}
                       </div>
                     ))}
@@ -207,7 +206,7 @@ export default function CalendarPage() {
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setSelected([])}>
             <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold mb-0">📅 {selectedDate} 스케줄</h3>
+                <h3 className="text-lg font-bold">📅 {selectedDate} 스케줄</h3>
                 <button
                   onClick={() => {
                     setSelected([])
@@ -220,15 +219,14 @@ export default function CalendarPage() {
               </div>
               <div className="flex flex-col gap-3 max-h-80 overflow-y-auto">
                 {selected.map(s => (
-                  <div key={s.id} className={`border rounded-lg p-3 ${s.is_manual ? 'border-green-200 bg-green-50' : ''}`}>
+                  <div key={s.id} className="border rounded-lg p-3">
                     <div className="font-semibold">{s.product_name}</div>
-                    <p className="text-sm text-gray-500">브랜드: {s.brand_name}</p>
-                    <p className="text-sm text-gray-500">채널: {s.channel}</p>
-                    <p className="text-sm text-gray-500">담당자: {s.manager_name}</p>
-                    <p className="text-sm text-gray-500">데드라인: {new Date(s.deadline).toLocaleString('ko-KR')}</p>
+                    {s.brand_name && <p className="text-sm text-gray-500">브랜드: {s.brand_name}</p>}
+                    {s.channel && <p className="text-sm text-gray-500">채널: {s.channel}</p>}
+                    {s.manager_name && <p className="text-sm text-gray-500">담당자: {s.manager_name}</p>}
+                    <p className="text-sm text-gray-500">날짜: {new Date(s.deadline).toLocaleString('ko-KR')}</p>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.status}</span>
                     {s.youtube_url && <a href={s.youtube_url} target="_blank" className="block text-xs text-red-500 mt-1">▶ 유튜브 링크</a>}
-                    {s.is_manual && <span className="text-xs text-green-600 font-medium ml-2">✏️ 직접입력</span>}
                   </div>
                 ))}
               </div>
