@@ -98,43 +98,87 @@ export default function PortalPage() {
         </div>
       </header>
 
-      <section className="max-w-6xl mx-auto px-6 py-12">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+
+        {/* 페이지 제목 */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-slate-800 mb-3">채널별 단가 안내</h1>
           <p className="text-slate-500">아래 단가를 확인하시고 진행을 원하시면 세부 정보를 입력해주세요.</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-8 shadow-md border border-slate-100 text-center">
-          <h2 className="text-xl font-bold text-slate-800 mb-2">진행을 원하시나요?</h2>
-          <p className="text-slate-500 mb-6">세부 정보를 입력해주시면 담당자가 곧 연락드립니다.</p>
+        {/* CTA 섹션 - 채널 목록 위, 충분한 여백 확보 */}
+        <div className="mb-14 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 md:p-10 text-center shadow-xl">
+          <div className="mb-2">
+            <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">📋 광고 진행 문의</span>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-3">진행을 원하시나요?</h2>
+          <p className="text-blue-100 mb-8 text-base">세부 정보를 입력해주시면 담당자가 곧 연락드립니다.</p>
           <a
             href="/portal/details"
-            className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
+            className="inline-block px-10 py-4 bg-white text-blue-700 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
           >
             세부 정보 입력하기 →
           </a>
         </div>
 
-        {/* 국내 채널 */}
-        <div className="mb-10">
-          <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
-            <span className="w-1 h-5 bg-blue-600 rounded-full inline-block"></span>
-            국내 채널
-          </h2>
+        {/* 구분선 */}
+        <div className="flex items-center gap-4 mb-10">
+          <div className="flex-1 h-px bg-slate-200"></div>
+          <span className="text-slate-400 text-sm font-medium px-2">채널 목록</span>
+          <div className="flex-1 h-px bg-slate-200"></div>
+        </div>
+
+        {/* 국내 채널 섹션 */}
+        <div className="mb-14">
+          <div className="flex items-center gap-3 mb-6 bg-blue-50 border border-blue-200 rounded-2xl px-6 py-4">
+            <span className="text-3xl">🇰🇷</span>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h2 className="text-xl font-extrabold text-blue-800">국내 채널</h2>
+                <span className="text-xs bg-blue-600 text-white font-bold px-2 py-0.5 rounded-full">{domesticChannels.length}개</span>
+              </div>
+              <p className="text-sm text-blue-500">Korean Channels · 국내 인플루언서</p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {domesticChannels.map((ch) => <ChannelCard key={ch.name} ch={ch} />)}
           </div>
         </div>
 
-        {/* 일본 채널 */}
-        <div className="mb-10">
-          <h2 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
-            <span className="w-1 h-5 bg-red-500 rounded-full inline-block"></span>
-            Japan Channels · 일본 채널
-          </h2>
+        {/* 국내/일본 구분 */}
+        <div className="flex items-center gap-4 mb-10">
+          <div className="flex-1 h-px bg-slate-200"></div>
+          <span className="text-slate-400 text-sm font-medium px-2">🌏 해외 채널</span>
+          <div className="flex-1 h-px bg-slate-200"></div>
+        </div>
+
+        {/* 일본 채널 섹션 */}
+        <div className="mb-14">
+          <div className="flex items-center gap-3 mb-6 bg-red-50 border border-red-200 rounded-2xl px-6 py-4">
+            <span className="text-3xl">🇯🇵</span>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h2 className="text-xl font-extrabold text-red-800">일본 채널</h2>
+                <span className="text-xs bg-red-500 text-white font-bold px-2 py-0.5 rounded-full">{japanChannels.length}개</span>
+              </div>
+              <p className="text-sm text-red-400">Japan Channels · 일본 인플루언서</p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {japanChannels.map((ch) => <ChannelCard key={ch.name} ch={ch} />)}
           </div>
+        </div>
+
+        {/* 하단 CTA 반복 */}
+        <div className="mt-4 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 text-center shadow-xl">
+          <h2 className="text-xl font-extrabold text-white mb-2">마음에 드는 채널을 찾으셨나요?</h2>
+          <p className="text-blue-100 mb-6 text-sm">세부 정보를 입력하시면 담당자가 빠르게 연락드립니다.</p>
+          <a
+            href="/portal/details"
+            className="inline-block px-8 py-3 bg-white text-blue-700 rounded-2xl font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+          >
+            세부 정보 입력하기 →
+          </a>
         </div>
 
       </section>
