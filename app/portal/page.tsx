@@ -7,14 +7,14 @@ type Session = { id: string; name: string; email: string };
 
 const CHANNEL_PRICES = [
   // 국내 채널
-  { name: '셀럽온', platform: 'YouTube · IG · TikTok', subscribers: '1.16만 / 153 / 185', makePrice: 80, postPrice: 35, link: 'https://www.youtube.com/@셀럽온', featured: true },
+  { name: '셀럽온', platform: 'YouTube · IG · TikTok', subscribers: '1.16만 / 153 / 185', makePrice: 80, postPrice: 35, link: 'https://www.youtube.com/@셀럽은', featured: true },
   { name: '찐예쁨', platform: 'YouTube · IG · TikTok', subscribers: '1.2만 / 900 / 1,562', makePrice: 70, postPrice: 30, link: 'https://www.youtube.com/@예쁘지고싶니' },
   { name: '미모지상주의', platform: 'YouTube · IG · TikTok', subscribers: '6.21만 / 2 / 2,683', makePrice: 70, postPrice: 30, link: 'https://www.youtube.com/@예쁘지고싶으면구독' },
   { name: '쇼잉', platform: 'YouTube · IG · TikTok', subscribers: '37.2만 / 6,505 / 793', makePrice: 75, postPrice: 30, link: 'https://www.youtube.com/@구독은너무좋아요' },
-  { name: '쇼숏', platform: 'YouTube · IG · TikTok', subscribers: '34.1만 / 9,835 / 5,206', makePrice: 75, postPrice: 30, link: 'https://www.youtube.com/@구독은항용은입니다' },
+  { name: '쇼숏', platform: 'YouTube · IG · TikTok', subscribers: '34.1만 / 9,835 / 5,206', makePrice: 75, postPrice: 30, link: 'https://www.youtube.com/@구독은행운입니다' },
   { name: '숏됐다', platform: 'YouTube · IG', subscribers: '25.3만 / 7,869', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독은필수인거알지' },
   { name: '밈튜브', platform: 'YouTube · IG · TikTok', subscribers: '24.7만 / 2,469 / 1,735', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@mimtube777' },
-  { name: '핫스커버리', platform: 'YouTube · IG', subscribers: '21.3만 / 2,077', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@핫스커버리' },
+  { name: '숏스커버리', platform: 'YouTube · IG', subscribers: '21.3만 / 2,077', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@숏스커버리' },
   { name: '유니랜드', platform: 'YouTube · IG · TikTok', subscribers: '17만 / 4,335 / 295', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@유니랜드' },
   { name: '신기+탬', platform: 'YouTube · IG · TikTok', subscribers: '14.4만 / 1,759 / 2,343', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@이쁘지고싶으면구독' },
   { name: '숏믈리에', platform: 'YouTube · IG', subscribers: '3.98만 / 419', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@숏믈리에' },
