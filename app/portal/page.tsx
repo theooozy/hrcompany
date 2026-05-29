@@ -107,7 +107,7 @@ export default function PortalPage() {
         </div>
 
         {/* CTA 섹션 - 채널 목록 위, 충분한 여백 확보 */}
-        <div className="mb-14 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 md:p-10 text-center shadow-xl">
+        <div className="mb-14 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 md:p-10 text-center shadow-xl overflow-hidden">
           <div className="mb-2">
             <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">📋 광고 진행 문의</span>
           </div>
@@ -115,7 +115,7 @@ export default function PortalPage() {
           <p className="text-blue-100 mb-8 text-base">세부 정보를 입력해주시면 담당자가 곧 연락드립니다.</p>
           <a
             href="/portal/details"
-            className="inline-block px-10 py-4 bg-white text-blue-700 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+            className="inline-block px-6 py-3 bg-white text-blue-700 rounded-2xl font-bold text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 whitespace-nowrap"
           >
             세부 정보 입력하기 →
           </a>
