@@ -392,7 +392,7 @@ export default function DashboardPage() {
 
   const getApprovedForDate = (dateStr: string) => [
     ...inquiries.filter(i => i.status === 'approved' && i.scheduled_date === dateStr).map(i => ({ ...i, _source: 'inquiry' })),
-    ...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, brand_name: s.brand_name, _source: 'schedule' }))
+    ...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, brand_name: s.brand_name, brand: s.brand_name || s.product_name, _source: 'schedule' }))
   ];
   const formatDate = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
   const formatDateTime = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
