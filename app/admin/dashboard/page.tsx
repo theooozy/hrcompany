@@ -106,6 +106,8 @@ export default function DashboardPage() {
         if (activeMenu === 'trash') fetchTrash();
       })
       .subscribe();
+    fetchInquiries();
+    fetchManualSchedules();
     return () => { supabase.removeChannel(ch); };
   }, [activeMenu]);
   useEffect(() => { if (activeMenu === 'trash') fetchTrash(); if (activeMenu === 'staff') fetchStaff(); if (activeMenu === 'channels') fetchChannelSettings(); }, [activeMenu]);
