@@ -8,8 +8,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-const CHANNELS = ['셀럽온','찐예쁨','미모지상주의','쇼잉','쇼숏','숏됐다','밈튜브','숏스커버리','유니랜드','신기+탬','숏믈리에','디어랩','숏픽','두근두근','전국댓글자랑','숏플레시','출석체크','ワクワク','スポログ','笑慇の一秒','おもしろ塾','一瞬劇場','絆タイム','チーズケーキ','オイシイワールド','モグモグ','トレ韓']
-
 type Schedule = {
   id: string
   product_name: string
@@ -21,63 +19,54 @@ type Schedule = {
   youtube_url?: string
 }
 
-type NewSchedule = {
-  product_name: string
-  brand_name: string
-  channel: string
-  manager_name: string
-  deadline: string
-  status: string
-  youtube_url: string
-}
-
-const emptyForm: NewSchedule = {
-  product_name: '',
-  brand_name: '',
-  channel: '',
-  manager_name: '',
-  deadline: '',
-  status: '진행중',
-  youtube_url: '',
-}
-
 export default function CalendarPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [year, setYear] = useState(new Date().getFullYear())
+  const [month, setMonth] = useState(new Date().getMonth())
   const [selected, setSelected] = useState<Schedule[]>([])
-  const [selectedDate, setSelectedDate] = useState<string>('')
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [addForm, setAddForm] = useState<NewSchedule>(emptyForm)
-  const [addLoading, setAddLoading] = useState(false)
-  const [addError, setAddError] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
   const router = useRouter()
 
   useEffect(() => {
     const checkLogin = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/admin/login'); return }
-      fetchSchedules()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) router.push('/admin/login')
     }
     checkLogin()
-  }, [])
+  }, [router])
+
+  useEffect(() => {
+    fetchSchedules()
+  }, [year, month])
 
   const fetchSchedules = async () => {
-    const { data } = await supabase.from('schedules').select('*')
-    if (data) setSchedules(data)
+    const start = new Date(year, month, 1).toISOString()
+    const end = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
+    const { data } = await supabase
+      .from('schedules')
+      .select('*')
+      .gte('deadline', start)
+      .lte('deadline', end)
+      .order('deadline', { ascending: true })
+    setSchedules(data || [])
   }
 
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const days = ['일','월','화','수','목','금','토']
+  const today = new Date()
 
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
+  const prevMonth = () => {
+    if (month === 0) { setYear(y => y - 1); setMonth(11) }
+    else setMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (month === 11) { setYear(y => y + 1); setMonth(0) }
+    else setMonth(m => m + 1)
+  }
 
   const getSchedulesForDay = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return schedules.filter(s => s.deadline?.startsWith(dateStr))
+    return schedules.filter(s => s.deadline.startsWith(dateStr))
   }
 
   const handleDayClick = (day: number) => {
@@ -86,113 +75,94 @@ export default function CalendarPage() {
     setSelected(getSchedulesForDay(day))
   }
 
-  const openAddModal = (dateStr?: string) => {
-    setAddForm({ ...emptyForm, deadline: dateStr ? dateStr + 'T09:00' : '' })
-    setAddError('')
-    setShowAddModal(true)
-  }
-
-  const handleAddFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setAddForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!addForm.product_name || !addForm.deadline) {
-      setAddError('제목과 날짜는 필수입니다.')
-      return
-    }
-    setAddLoading(true)
-    setAddError('')
-    const payload: Record<string, string | null> = {
-      product_name: addForm.product_name,
-      brand_name: addForm.brand_name || null,
-      channel: addForm.channel || null,
-      manager_name: addForm.manager_name || null,
-      deadline: addForm.deadline,
-      status: addForm.status,
-      youtube_url: addForm.youtube_url || null,
-    }
-    const { error } = await supabase.from('schedules').insert([payload])
-    setAddLoading(false)
-    if (error) {
-      setAddError('저장 중 오류: ' + error.message)
-    } else {
-      setShowAddModal(false)
-      setAddForm(emptyForm)
-      await fetchSchedules()
-    }
+  const statusColor = (status: string) => {
+    if (status === '완료') return 'bg-green-100 text-green-700'
+    if (status === '진행중') return 'bg-blue-100 text-blue-700'
+    if (status === '대기') return 'bg-yellow-100 text-yellow-700'
+    if (status === '보류') return 'bg-red-100 text-red-700'
+    return 'bg-gray-100 text-gray-700'
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 bg-white shadow-md flex flex-col p-4">
-        <h1 className="text-lg font-bold mb-6 text-gray-800">관리자 메뉴</h1>
+    <div className="flex h-screen bg-gray-100">
+      <nav className="w-52 bg-slate-800 text-white flex flex-col py-6 px-4 min-h-screen">
+        <div className="text-lg font-bold mb-8 px-2">관리자 메뉴</div>
         <nav className="flex flex-col gap-1 flex-1">
-          <button onClick={() => router.push('/admin/dashboard')} className="text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">📋 요청 관리</button>
-          <button onClick={() => router.push('/admin/schedule')} className="text-left px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">📅 스케줄표</button>
-          <button className="text-left px-4 py-2 rounded-lg text-sm bg-gray-700 text-white font-medium">📆 캘린더</button>
+          <a href="/admin/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm">
+            📋 요청 관리
+          </a>
+          <a href="/admin/schedule" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-700 transition text-sm">
+            📊 스케줄표
+          </a>
+          <a href="/admin/calendar" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700 transition text-sm font-semibold">
+            📅 캘린더
+          </a>
         </nav>
-        <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="text-sm text-gray-400 hover:text-gray-600 mt-4">로그아웃</button>
-      </aside>
+        <button
+          onClick={async () => { await supabase.auth.signOut(); router.push('/admin/login') }}
+          className="mt-4 text-sm text-slate-400 hover:text-white transition px-2"
+        >
+          로그아웃
+        </button>
+      </nav>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-8 overflow-auto">
         {/* 헤더 */}
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <button onClick={prevMonth} className="bg-white shadow px-3 py-1 rounded-lg hover:bg-gray-100">◀</button>
-            <h2 className="text-2xl font-bold">{year}년 {month + 1}월</h2>
-            <button onClick={nextMonth} className="bg-white shadow px-3 py-1 rounded-lg hover:bg-gray-100">▶</button>
+        <div className="flex items-center justify-center mb-2">
+          <div className="flex items-center justify-between gap-4 mb-6 w-full">
+            <div className="flex items-center gap-4">
+              <button onClick={prevMonth} className="bg-white shadow px-3 py-1 rounded-lg hover:bg-gray-100">◀</button>
+              <h2 className="text-2xl font-bold">{year}년 {month + 1}월</h2>
+              <button onClick={nextMonth} className="bg-white shadow px-3 py-1 rounded-lg hover:bg-gray-100">▶</button>
+            </div>
+            <button
+              onClick={() => router.push('/admin/schedule/new')}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold shadow hover:bg-blue-700 transition-all text-sm"
+            >
+              <span className="text-lg leading-none">+</span> 일정 추가
+            </button>
           </div>
-          <button
-            onClick={() => openAddModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold shadow hover:bg-blue-700 transition-all text-sm"
-          >
-            <span className="text-lg leading-none">+</span> 일정 추가
-          </button>
         </div>
 
         {/* 캘린더 */}
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="grid grid-cols-7">
-            {days.map((d, i) => (
-              <div key={d} className={`text-center py-3 text-sm font-semibold border-b ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-600'}`}>{d}</div>
+        <div className="bg-white rounded-2xl shadow overflow-hidden">
+          <div className="grid grid-cols-7 border-b">
+            {['일','월','화','수','목','금','토'].map((d, i) => (
+              <div key={d} className={`text-center py-3 text-sm font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-600'}`}>{d}</div>
             ))}
           </div>
           <div className="grid grid-cols-7">
-            {Array(firstDay).fill(null).map((_, i) => (
-              <div key={`empty-${i}`} className="border-r border-b min-h-[100px] bg-gray-50" />
+            {Array.from({ length: firstDay }).map((_, i) => (
+              <div key={'empty-' + i} className="border-r border-b min-h-[100px]" />
             ))}
-            {Array(daysInMonth).fill(null).map((_, i) => {
+            {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1
-              const isToday = new Date().getFullYear() === year && new Date().getMonth() === month && new Date().getDate() === day
               const daySchedules = getSchedulesForDay(day)
-              const dow = (firstDay + i) % 7
+              const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
+              const col = (firstDay + i) % 7
               return (
                 <div
                   key={day}
-                  className={`border-r border-b min-h-[100px] p-1 cursor-pointer hover:bg-blue-50 transition-colors relative group ${isToday ? 'bg-blue-50' : ''}`}
+                  className={`border-r border-b min-h-[100px] p-1 cursor-pointer hover:bg-gray-50 group relative ${isToday ? 'bg-blue-50' : ''}`}
                   onClick={() => handleDayClick(day)}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-sm font-semibold ${isToday ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-gray-700'}`}>{day}</span>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : col === 0 ? 'text-red-500' : col === 6 ? 'text-blue-500' : 'text-gray-700'}`}>
+                      {day}
+                    </span>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                        openAddModal(dateStr)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 w-5 h-5 bg-blue-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-blue-700 transition-all"
+                      onClick={e => { e.stopPropagation(); router.push('/admin/schedule/new') }}
+                      className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 text-lg font-bold w-6 h-6 flex items-center justify-center rounded transition"
                     >+</button>
                   </div>
-                  <div className="flex flex-col gap-0.5">
+                  <div className="mt-1 space-y-0.5">
                     {daySchedules.slice(0, 3).map(s => (
-                      <div key={s.id} className="text-xs px-1 py-0.5 rounded truncate bg-blue-100 text-blue-700">
+                      <div key={s.id} className={`text-xs px-1 py-0.5 rounded truncate ${statusColor(s.status)}`}>
                         {s.product_name}
                       </div>
                     ))}
                     {daySchedules.length > 3 && (
-                      <div className="text-xs text-gray-400">+{daySchedules.length - 3}개</div>
+                      <div className="text-xs text-gray-400 px-1">+{daySchedules.length - 3}개 더</div>
                     )}
                   </div>
                 </div>
@@ -201,148 +171,39 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* 날짜 클릭 시 스케줄 오버레이 */}
+        {/* 날짜 클릭 오버레이 */}
         {selected.length > 0 && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setSelected([])}>
-            <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setSelected([])}>
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">📅 {selectedDate} 스케줄</h3>
-                <button
-                  onClick={() => {
-                    setSelected([])
-                    openAddModal(selectedDate)
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700"
-                >
-                  <span>+</span> 추가
-                </button>
+                <h3 className="text-lg font-bold">{selectedDate} 일정</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setSelected([]); router.push('/admin/schedule/new') }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+                  >
+                    <span>+</span> 추가
+                  </button>
+                  <button onClick={() => setSelected([])} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+                </div>
               </div>
-              <div className="flex flex-col gap-3 max-h-80 overflow-y-auto">
+              <div className="space-y-3 max-h-80 overflow-y-auto">
                 {selected.map(s => (
-                  <div key={s.id} className="border rounded-lg p-3">
-                    <div className="font-semibold">{s.product_name}</div>
-                    {s.brand_name && <p className="text-sm text-gray-500">브랜드: {s.brand_name}</p>}
-                    {s.channel && <p className="text-sm text-gray-500">채널: {s.channel}</p>}
-                    {s.manager_name && <p className="text-sm text-gray-500">담당자: {s.manager_name}</p>}
-                    <p className="text-sm text-gray-500">날짜: {new Date(s.deadline).toLocaleString('ko-KR')}</p>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{s.status}</span>
-                    {s.youtube_url && <a href={s.youtube_url} target="_blank" className="block text-xs text-red-500 mt-1">▶ 유튜브 링크</a>}
+                  <div key={s.id} className="border rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusColor(s.status)}`}>{s.status}</span>
+                      <span className="font-semibold text-sm">{s.product_name}</span>
+                    </div>
+                    {s.brand_name && <div className="text-xs text-gray-500">브랜드: {s.brand_name}</div>}
+                    {s.channel && <div className="text-xs text-gray-500">채널: {s.channel}</div>}
+                    {s.manager_name && <div className="text-xs text-gray-500">담당자: {s.manager_name}</div>}
+                    <div className="text-xs text-gray-400 mt-1">{new Date(s.deadline).toLocaleString('ko-KR')}</div>
+                    {s.youtube_url && (
+                      <a href={s.youtube_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline mt-1 block truncate">{s.youtube_url}</a>
+                    )}
                   </div>
                 ))}
               </div>
-              <button onClick={() => setSelected([])} className="mt-4 w-full bg-gray-700 text-white py-2 rounded-lg text-sm">닫기</button>
-            </div>
-          </div>
-        )}
-
-        {/* 일정 직접 추가 모달 */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
-              <h3 className="text-xl font-bold mb-5 text-slate-800">📝 일정 직접 추가</h3>
-              <form onSubmit={handleAddSubmit} className="flex flex-col gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">제목 <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    name="product_name"
-                    value={addForm.product_name}
-                    onChange={handleAddFormChange}
-                    placeholder="예) OO브랜드 숏폼 제작"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">브랜드명</label>
-                    <input
-                      type="text"
-                      name="brand_name"
-                      value={addForm.brand_name}
-                      onChange={handleAddFormChange}
-                      placeholder="브랜드명"
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">채널</label>
-                    <select
-                      name="channel"
-                      value={addForm.channel}
-                      onChange={handleAddFormChange}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                    >
-                      <option value="">채널 선택</option>
-                      {CHANNELS.map(ch => <option key={ch} value={ch}>{ch}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">담당자</label>
-                    <input
-                      type="text"
-                      name="manager_name"
-                      value={addForm.manager_name}
-                      onChange={handleAddFormChange}
-                      placeholder="담당자명"
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">날짜/시간 <span className="text-red-500">*</span></label>
-                    <input
-                      type="datetime-local"
-                      name="deadline"
-                      value={addForm.deadline}
-                      onChange={handleAddFormChange}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">상태</label>
-                    <select
-                      name="status"
-                      value={addForm.status}
-                      onChange={handleAddFormChange}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                    >
-                      <option value="진행중">진행중</option>
-                      <option value="완료">완료</option>
-                      <option value="대기">대기</option>
-                      <option value="보류">보류</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">유튜브 URL</label>
-                    <input
-                      type="url"
-                      name="youtube_url"
-                      value={addForm.youtube_url}
-                      onChange={handleAddFormChange}
-                      placeholder="https://youtube.com/..."
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                    />
-                  </div>
-                </div>
-                {addError && <p className="text-red-500 text-sm">{addError}</p>}
-                <div className="flex gap-3 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
-                  >취소</button>
-                  <button
-                    type="submit"
-                    disabled={addLoading}
-                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 disabled:opacity-60"
-                  >{addLoading ? '저장 중...' : '일정 저장'}</button>
-                </div>
-              </form>
             </div>
           </div>
         )}
