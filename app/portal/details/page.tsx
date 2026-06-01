@@ -120,11 +120,11 @@ export default function PortalDetailsPage() {
                 <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-6">
                         <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 text-center">
                                   <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
-                                              <span className="text-3xl">✓</span>span>
+                                              <span className="text-3xl">✓</span>
                                   </div>
                                   <h1 className="text-2xl font-bold text-slate-800 mb-2">제출 완료</h1>h1>
                                   <p className="text-slate-500 mb-6">담당자가 검토 후 연락드리겠습니다.</p>p>
-                                  <a href="/portal" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-bold">포털로 돌아가기</a>a>
+                                  <a href="/portal" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-bold">포털로 돌아가기</a>
                         </div>
                 </div>
               );
@@ -136,13 +136,13 @@ export default function PortalDetailsPage() {
                         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
                                   <div className="flex items-center gap-3">
                                               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-md">
-                                                            <span className="text-white font-bold text-sm">HR</span>span>
+                                                            <span className="text-white font-bold text-sm">HR</span>
                                               </div>
-                                              <span className="text-xl font-bold text-slate-800">HR Company</span>span>
+                                              <span className="text-xl font-bold text-slate-800">HR Company</span>
                                   </div>
-                                  <a href="/portal" className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100">← 포털</a>a>
+                                  <a href="/portal" className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100">← 포털</a>
                         </div>
-                </header>header>
+                </header>
           
                 <section className="max-w-3xl mx-auto px-6 py-12">
                         <div className="text-center mb-8">
@@ -152,57 +152,57 @@ export default function PortalDetailsPage() {
                 
                         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md p-8 space-y-6">
                                   <div>
-                                              <label className={lc}>사업자번호</label>label>
+                                              <label className={lc}>사업자번호</label>
                                               <input type="text" name="business_number" value={form.business_number} onChange={handleChange} placeholder="예) 123-45-67890" className={ic} />
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>통장 사본 <span className="text-xs text-slate-400">(이미지 첨부)</span>span></label>label>
+                                              <label className={lc}>통장 사본 <span className="text-xs text-slate-400">(이미지 첨부)</span></label>
                                               <label className="flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer">
-                                                            <span className="text-lg">📎</span>span>
-                                                            <span className="text-sm text-slate-500">{bankFile ? bankFile.name : '이미지를 선택해주세요 (JPG, PNG, PDF)'}</span>span>
+                                                            <span className="text-lg">📎</span>
+                                                            <span className="text-sm text-slate-500">{bankFile ? bankFile.name : '이미지를 선택해주세요 (JPG, PNG, PDF)'}</span>
                                                             <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setBankFile(e.target.files?.[0] || null)} />
-                                              </label>label>
+                                              </label>
                                     {bankFile && (
-                          <button type="button" onClick={() => setBankFile(null)} className="mt-2 text-xs text-red-400 hover:text-red-600">파일 삭제</button>button>
+                          <button type="button" onClick={() => setBankFile(null)} className="mt-2 text-xs text-red-400 hover:text-red-600">파일 삭제</button>
                                               )}
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>업로드 일시</label>label>
+                                              <label className={lc}>업로드 일시</label>
                                               <input type="date" name="upload_date" value={form.upload_date} onChange={handleChange} className={ic} />
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>소재 정보</label>label>
+                                              <label className={lc}>소재 정보</label>
                                               <label className="flex items-center gap-2 mb-2 cursor-pointer">
                                                             <input type="checkbox" name="material_none" checked={form.material_none} onChange={handleChange} className="w-4 h-4" />
-                                                            <span className="text-sm text-slate-500">없음 (별도 재전달 예정)</span>span>
-                                              </label>label>
+                                                            <span className="text-sm text-slate-500">없음 (별도 재전달 예정)</span>
+                                              </label>
                                     {!form.material_none && (
                           <input type="text" name="material" value={form.material} onChange={handleChange} placeholder="예) 공식계정 IG / YT 온드미디어" className={ic} />
                         )}
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>제품 링크</label>label>
+                                              <label className={lc}>제품 링크</label>
                                               <label className="flex items-center gap-2 mb-2 cursor-pointer">
                                                             <input type="checkbox" name="product_link_none" checked={form.product_link_none} onChange={handleChange} className="w-4 h-4" />
-                                                            <span className="text-sm text-slate-500">없음</span>span>
-                                              </label>label>
+                                                            <span className="text-sm text-slate-500">없음</span>
+                                              </label>
                                     {!form.product_link_none && (
                           <input type="url" name="product_link" value={form.product_link} onChange={handleChange} placeholder="https://" className={ic} />
                         )}
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>추가 정보 (2차 활용 여부)</label>label>
+                                              <label className={lc}>추가 정보 (2차 활용 여부)</label>
                                               <div className="space-y-2">
                                                 {SECONDARY_USE_OPTIONS.map(opt => (
                             <label key={opt} className="flex items-center gap-2 cursor-pointer">
                                               <input type="radio" name="secondary_use" value={opt} checked={form.secondary_use === opt} onChange={handleChange} />
-                                              <span className="text-sm text-slate-700">{opt}</span>span>
-                            </label>label>
+                                              <span className="text-sm text-slate-700">{opt}</span>
+                            </label>
                           ))}
                                                 {form.secondary_use === '기타' && (
                             <input type="text" name="secondary_use_custom" value={form.secondary_use_custom} onChange={handleChange} placeholder="기타 내용 입력" className={ic} />
@@ -212,12 +212,12 @@ export default function PortalDetailsPage() {
                         
                           {/* 선호하는 채널 선택 */}
                                   <div>
-                                              <label className={lc}>선호하는 채널 <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span>span></label>label>
+                                              <label className={lc}>선호하는 채널 <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span></label>
                                               
                                     {/* 국내 채널 */}
                                               <div className="mb-4">
                                                             <div className="flex items-center gap-2 mb-2">
-                                                                            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">🇰🇷 국내 채널</span>span>
+                                                                            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">🇰🇷 국내 채널</span>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
                                                               {DOMESTIC_CHANNELS.map(ch => (
@@ -232,7 +232,7 @@ export default function PortalDetailsPage() {
                                                     }`}
                                                   >
                                 {ch}
-                              </button>button>
+                              </button>
                             ))}
                                                             </div>
                                               </div>
@@ -240,7 +240,7 @@ export default function PortalDetailsPage() {
                                     {/* 일본 채널 */}
                                               <div>
                                                             <div className="flex items-center gap-2 mb-2">
-                                                                            <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">🇯🇵 일본 채널</span>span>
+                                                                            <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">🇯🇵 일본 채널</span>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
                                                               {JAPAN_CHANNELS.map(ch => (
@@ -255,26 +255,26 @@ export default function PortalDetailsPage() {
                                                     }`}
                                                   >
                                 {ch}
-                              </button>button>
+                              </button>
                             ))}
                                                             </div>
                                               </div>
                                   
                                     {preferredChannels.length > 0 && (
                           <div className="mt-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                                          <span className="text-xs text-slate-500">선택된 채널: </span>span>
-                                          <span className="text-xs font-semibold text-slate-700">{preferredChannels.join(', ')}</span>span>
+                                          <span className="text-xs text-slate-500">선택된 채널: </span>
+                                          <span className="text-xs font-semibold text-slate-700">{preferredChannels.join(', ')}</span>
                           </div>
                                               )}
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>희망 영상 컨셉</label>label>
+                                              <label className={lc}>희망 영상 컨셉</label>
                                               <textarea name="video_concept" value={form.video_concept} onChange={handleChange} rows={3} placeholder="원하시는 영상 컨셉을 자유롭게 적어주세요" className={ic + ' resize-none'} />
                                   </div>
                         
                                   <div>
-                                              <label className={lc}>기타 전달 사항</label>label>
+                                              <label className={lc}>기타 전달 사항</label>
                                               <textarea name="extra" value={form.extra} onChange={handleChange} rows={2} placeholder="추가 전달 사항을 입력해주세요." className={ic + ' resize-none'} />
                                   </div>
                         
@@ -284,9 +284,9 @@ export default function PortalDetailsPage() {
                                                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all disabled:opacity-60"
                                               >
                                     {loading ? '제출 중...' : '세부 정보 제출하기'}
-                                  </button>button>
-                        </form>form>
-                </section>section>
+                                  </button>
+                        </form>
+                </section>
           </div>
         );
 }</div>
