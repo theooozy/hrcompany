@@ -58,6 +58,7 @@ type Inquiry = {
   deleted?: boolean;
   deleted_from?: string;
   deleted_at?: string;
+  preferred_channels?: string;
 };
 
 export default function DashboardPage() {
@@ -207,13 +208,13 @@ fetchManualSchedules();
   };
 
   const handleSaveYoutube = async (id: string) => {
-    const url = ytInputs[id];
-    if (!url) { alert('유튜브 링크를 입력해주세요.'); return; }
-    const { error } = await supabase.from('inquiries').update({ youtube_url: url }).eq('id', id);
+    const url = ytInputs[id] !== undefined ? ytInputs[id] : '';
+    const saveUrl = url.trim() === '' ? null : url.trim();
+    const { error } = await supabase.from('inquiries').update({ youtube_url: saveUrl }).eq('id', id);
     if (!error) {
-      alert('유튜브 링크 저장 완료!');
+      alert(saveUrl ? '유튜브 링크 저장 완료!' : '유튜브 링크가 삭제되었습니다.');
       fetchInquiries();
-      if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? { ...prev, youtube_url: url } : null);
+      if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? { ...prev, youtube_url: saveUrl || undefined } : null);
     } else alert('오류: ' + error.message);
   };
 
@@ -243,6 +244,26 @@ fetchManualSchedules();
       if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, memo } : null);
     }
     setSavingMemo(null);
+  };
+
+  const handleSaveMemoWithValue = async (id: string, memo: string) => {
+    setSavingMemo(id);
+    const { error } = await supabase.from('inquiries').update({ memo }).eq('id', id);
+    if (!error) {
+      setInquiries(prev => prev.map(i => i.id === id ? { ...i, memo } : i));
+      if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, memo } : null);
+    }
+    setSavingMemo(null);
+  };
+
+  const handleScheduleMemoWithValue = async (id: string, memo: string) => {
+    const { error } = await supabase.from('schedules').update({ memo }).eq('id', id);
+    if (!error) {
+      setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, memo } : s));
+      if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
+        setSelectedDetail((prev: any) => prev ? { ...prev, memo } : null);
+      }
+    }
   };
 
   const [trashList, setTrashList] = useState<Inquiry[]>([]);
@@ -538,39 +559,38 @@ fetchManualSchedules();
   };
 
   const MemoSection = ({ inq }: { inq: Inquiry }) => {
-    const currentMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
-    return (
-      <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-        <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
-        <textarea
-          value={currentMemo}
-          onChange={(e) => setMemoValues(prev => ({ ...prev, [inq.id]: e.target.value }))}
-          onInput={(e) => {
-            const ta = e.currentTarget;
-            ta.style.height = 'auto';
-            ta.style.height = ta.scrollHeight + 'px';
-          }}
-          ref={(el) => {
-            if (el && !el.dataset.sized) {
-              el.dataset.sized = '1';
-              el.style.height = 'auto';
-              el.style.height = el.scrollHeight + 'px';
-            }
-          }}
-          rows={3}
-          placeholder="메모를 입력하세요..."
-          className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white overflow-hidden min-h-[80px]"
-        />
-        <button
-          onClick={() => inq._source === 'schedule' ? handleScheduleMemo(inq.id) : handleSaveMemo(inq.id)}
-          disabled={savingMemo === inq.id}
-          className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
-        >
-          {savingMemo === inq.id ? '저장 중...' : '메모 저장'}
-        </button>
-      </div>
-    );
+  const initialMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
+  const [localMemo, setLocalMemo] = useState<string>(initialMemo);
+
+  const handleMemoSave = () => {
+    setMemoValues(prev => ({ ...prev, [inq.id]: localMemo }));
+    if (inq._source === 'schedule') {
+      handleScheduleMemoWithValue(inq.id, localMemo);
+    } else {
+      handleSaveMemoWithValue(inq.id, localMemo);
+    }
   };
+
+  return (
+    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+      <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
+      <textarea
+        value={localMemo}
+        onChange={(e) => setLocalMemo(e.target.value)}
+        rows={3}
+        placeholder="메모를 입력하세요..."
+        className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white min-h-[80px]"
+      />
+      <button
+        onClick={handleMemoSave}
+        disabled={savingMemo === inq.id}
+        className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
+      >
+        {savingMemo === inq.id ? '저장 중...' : '메모 저장'}
+      </button>
+    </div>
+  );
+};
 
   const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
   const pendingCount = inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length;
@@ -723,6 +743,7 @@ fetchManualSchedules();
                           <InfoRow label="제품 링크" value={inq.product_link} />
                           <InfoRow label="활용 소재" value={inq.material} />
                           <InfoRow label="2차 활용" value={inq.secondary_use} />
+                <InfoRow label="선호 채널" value={(inq as any).preferred_channels} />
                           <InfoRow label="영상 컨셉" value={inq.video_concept} />
                           <InfoRow label="기타" value={inq.extra} />
                           <InfoRow label="담당자" value={inq.name + (inq.phone ? ' · ' + inq.phone : '')} />
@@ -979,6 +1000,7 @@ setSelectedRowMeta(null);
                     ['제품 링크', selectedDetail.product_link],
                     ['활용 소재', selectedDetail.material],
                     ['2차 활용', selectedDetail.secondary_use],
+                ['선호 채널', (selectedDetail as any).preferred_channels],
                     ['희망 컨셉', selectedDetail.video_concept],
                     ['기타 전달', selectedDetail.extra],
                   ].filter(([, v]) => v).map(([label, value]) => (
