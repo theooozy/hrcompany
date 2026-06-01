@@ -680,7 +680,7 @@ export default function DashboardPage() {
 
     return (
       <div
-        className="absolute top-0 bottom-0 right-0 w-1/2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30"
+        className="fixed top-0 bottom-0 right-0 w-[480px] bg-white rounded-l-2xl border-l border-slate-200 shadow-2xl overflow-y-auto z-30"
         style={{ minHeight: '600px' }}
         ref={detailPanelRef}
         onClick={(e) => e.stopPropagation()}
@@ -1266,7 +1266,7 @@ export default function DashboardPage() {
           {selectedDetail && (
             <>
               <div
-                className="absolute inset-0 z-20"
+                className="fixed inset-0 z-20"
                 onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }}
               />
               <DetailEditablePanel
