@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -59,6 +59,10 @@ type Inquiry = {
   deleted_from?: string;
   deleted_at?: string;
   preferred_channels?: string;
+  deadline?: string | null;
+  _source?: string;
+  _scheduleId?: string;
+  [key: string]: unknown;
 };
 
 export default function DashboardPage() {
@@ -86,17 +90,18 @@ export default function DashboardPage() {
   const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
   const [memoValues, setMemoValues] = useState<Record<string, string>>({});
   const [savingMemo, setSavingMemo] = useState<string | null>(null);
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null)
-const [showAddPanel, setShowAddPanel] = useState(false)
-  const [addPanelLoading, setAddPanelLoading] = useState(false)
-  const [addPanelError, setAddPanelError] = useState('')
-  const [manualSchedules, setManualSchedules] = useState<any[]>([])
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [addPanelLoading, setAddPanelLoading] = useState(false);
+  const [addPanelError, setAddPanelError] = useState('');
+  const [manualSchedules, setManualSchedules] = useState<any[]>([]);
   const [addPanelForm, setAddPanelForm] = useState({
     product_name: '', brand_name: '', channel: '', manager_name: '',
     deadline: '', status: '진행중', youtube_url: '',
     email: '', phone: '', business_number: '', product_link: '',
     material: '', secondary_use: '', work_type: '콘티', work_status: ''
-  })
+  });
+  const detailPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { checkAuth(); fetchInquiries(); }, []);
   useEffect(() => {
@@ -108,9 +113,9 @@ const [showAddPanel, setShowAddPanel] = useState(false)
         if (activeMenu === 'trash') fetchTrash();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => {
-fetchManualSchedules();
-})
-.subscribe();
+        fetchManualSchedules();
+      })
+      .subscribe();
     fetchInquiries();
     fetchManualSchedules();
     return () => { supabase.removeChannel(ch); };
@@ -120,6 +125,18 @@ fetchManualSchedules();
     const onClick = () => { setOpenWorkStatusFor(null); setOpenWorkTypeFor(null); };
     window.addEventListener('click', onClick);
     return () => window.removeEventListener('click', onClick);
+  }, []);
+
+  // ESC key closes detail panel
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedDetail(null);
+        setSelectedRowMeta(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const checkAuth = async () => {
@@ -164,7 +181,8 @@ fetchManualSchedules();
     const { error } = await supabase.from('inquiries').update(updates).eq('id', id);
     if (error) { alert('오류: ' + error.message); return; }
     setInquiries(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
-  };;
+  };
+
   const fetchInquiries = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('inquiries').select('*').or('deleted.is.null,deleted.eq.false').order('created_at', { ascending: false });
@@ -172,12 +190,12 @@ fetchManualSchedules();
     setLoading(false);
   };
 
-   const fetchManualSchedules = async () => {
+  const fetchManualSchedules = async () => {
     const { data, error } = await supabase.from('schedules').select('*').order('created_at', { ascending: false });
     if (!error && data) setManualSchedules(data);
   };
 
- const handleApprove = async (inquiry: Inquiry) => {
+  const handleApprove = async (inquiry: Inquiry) => {
     const date = selectedDates[inquiry.id] || inquiry.scheduled_date;
     if (!date) { alert('날짜를 먼저 선택해주세요.'); return; }
     const { error } = await supabase.from('inquiries').update({ status: 'approved', scheduled_date: date }).eq('id', inquiry.id);
@@ -266,6 +284,21 @@ fetchManualSchedules();
     }
   };
 
+  const handleSaveDetailField = async (id: string, field: string, value: string | null, isSchedule: boolean) => {
+    const table = isSchedule ? 'schedules' : 'inquiries';
+    const { error } = await supabase.from(table).update({ [field]: value }).eq('id', id);
+    if (!error) {
+      if (isSchedule) {
+        setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, [field]: value } : s));
+      } else {
+        setInquiries(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+      }
+      setSelectedDetail(prev => prev ? { ...prev, [field]: value } : null);
+    } else {
+      alert('저장 실패: ' + error.message);
+    }
+  };
+
   const [trashList, setTrashList] = useState<Inquiry[]>([]);
 
   const fetchTrash = async () => {
@@ -282,11 +315,11 @@ fetchManualSchedules();
       data = retry.data;
     }
     if (error) {
-      alert('삭제 실패: ' + error.message + '\n\nSupabase RLS UPDATE 정책을 확인해주세요.');
+      alert('삭제 실패: ' + error.message);
       return;
     }
     if (!data || data.length === 0) {
-      alert('삭제할 항목을 찾지 못했습니다. RLS 정책 또는 권한을 확인해주세요.');
+      alert('삭제할 항목을 찾지 못했습니다.');
       return;
     }
     fetchInquiries();
@@ -383,7 +416,7 @@ fetchManualSchedules();
   };
   const handleDeleteChannel = async (channel: string) => {
     if (!canDeletePermanent()) { alert('관리자만 채널을 삭제할 수 있습니다.'); return; }
-    if (!confirm(`'${channel}' 채널을 삭제하시겠습니까?`)) return;
+    if (!confirm('\'' + channel + '\' 채널을 삭제하시겠습니까?')) return;
     const { error } = await supabase.from('channel_settings').delete().eq('channel', channel);
     if (error) { alert('오류: ' + error.message); return; }
     setChannelSettings(prev => { const next = { ...prev }; delete next[channel]; return next; });
@@ -395,27 +428,19 @@ fetchManualSchedules();
   };
   const canDeletePermanent = () => currentRole === 'master' || currentRole === 'admin';
   const handleEmptyTrash = async () => {
-    if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다. 관리자에게 문의하세요.'); return; }
+    if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다.'); return; }
     if (trashList.length === 0) { alert('휴지통이 비어있습니다.'); return; }
-    if (!confirm('휴지통을 비우시겠습니까? 모든 항목이 영구 삭제되며 복구할 수 없습니다.')) return;
+    if (!confirm('휴지통을 비우시겠습니까? 복구할 수 없습니다.')) return;
     const ids = trashList.map(t => t.id);
-    let okCount = 0;
-    let failMsg = '';
+    let okCount = 0; let failMsg = '';
     for (const id of ids) {
       const { error } = await supabase.from('inquiries').delete().eq('id', id);
-      if (error) { failMsg = error.message; }
-      else okCount++;
+      if (error) { failMsg = error.message; } else okCount++;
     }
-    await fetchTrash();
-    await fetchInquiries();
-    if (okCount === ids.length) {
-      // 조용히 완료 - 알림 없이 사라짐
-      return;
-    } else if (okCount > 0) {
-      alert(`${okCount}/${ids.length}개만 삭제됨. 일부 실패: ${failMsg}`);
-    } else {
-      alert('삭제에 실패했습니다. Supabase RLS 정책(delete)을 확인해주세요.\n오류: ' + failMsg);
-    }
+    await fetchTrash(); await fetchInquiries();
+    if (okCount === ids.length) { return; }
+    else if (okCount > 0) { alert(okCount + '/' + ids.length + '개만 삭제됨: ' + failMsg); }
+    else { alert('삭제 실패: ' + failMsg); }
   };
 
   const handleRowWorkType = async (id: string, channel: string, wtype: string) => {
@@ -423,7 +448,7 @@ fetchManualSchedules();
     const current = (target && (target['work_types'] as Record<string, string> | null | undefined)) || {};
     const next = { ...current, [channel]: wtype };
     const { error } = await supabase.from('inquiries').update({ work_types: next }).eq('id', id);
-    if (error) { alert('오류: ' + error.message + '\n\nSupabase에 work_types 컬럼이 없습니다. 안내된 SQL을 실행해주세요.'); return; }
+    if (error) { alert('오류: ' + error.message); return; }
     setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, work_types: next } as Inquiry) : i));
     if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? ({ ...prev, work_types: next } as Inquiry) : null);
   };
@@ -433,15 +458,15 @@ fetchManualSchedules();
     const current = (target && (target['work_statuses'] as Record<string, string> | null | undefined)) || {};
     const next = { ...current, [channel]: status };
     const { error } = await supabase.from('inquiries').update({ work_statuses: next }).eq('id', id);
-    if (error) { alert('오류: ' + error.message + '\n\nSupabase에 work_statuses 컬럼이 없습니다. 안내된 SQL을 실행해주세요.'); return; }
+    if (error) { alert('오류: ' + error.message); return; }
     setInquiries(prev => prev.map(i => i.id === id ? ({ ...i, work_statuses: next } as Inquiry) : i));
     if (selectedDetail?.id === id) setSelectedDetail((prev) => prev ? ({ ...prev, work_statuses: next } as Inquiry) : null);
     setOpenWorkStatusFor(null);
   };
 
   const handlePermanentDelete = async (id: string) => {
-    if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다. 관리자에게 문의하세요.'); return; }
-    if (!confirm('영구 삭제하시겠습니까? 복구가 불가능합니다.')) return;
+    if (!canDeletePermanent()) { alert('영구 삭제 권한이 없습니다.'); return; }
+    if (!confirm('영구 삭제하시겠습니까? 복구 불가합니다.')) return;
     const { error } = await supabase.from('inquiries').delete().eq('id', id);
     if (!error) fetchTrash();
     else alert('오류: ' + error.message);
@@ -559,46 +584,322 @@ fetchManualSchedules();
   };
 
   const MemoSection = ({ inq, memoValues, setMemoValues, savingMemo, setSavingMemo, handleSaveMemoFn, handleScheduleMemoFn }: {
-  inq: Inquiry;
-  memoValues: Record<string, string>;
-  setMemoValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  savingMemo: string | null;
-  setSavingMemo: React.Dispatch<React.SetStateAction<string | null>>;
-  handleSaveMemoFn: (id: string, memo: string) => Promise<void>;
-  handleScheduleMemoFn: (id: string, memo: string) => Promise<void>;
-}) => {
-  const initialMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
-  const [localMemo, setLocalMemo] = useState<string>(initialMemo);
+    inq: Inquiry;
+    memoValues: Record<string, string>;
+    setMemoValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+    savingMemo: string | null;
+    setSavingMemo: React.Dispatch<React.SetStateAction<string | null>>;
+    handleSaveMemoFn: (id: string, memo: string) => Promise<void>;
+    handleScheduleMemoFn: (id: string, memo: string) => Promise<void>;
+  }) => {
+    const initialMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
+    const [localMemo, setLocalMemo] = useState<string>(initialMemo);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleMemoSave = () => {
-    setMemoValues(prev => ({ ...prev, [inq.id]: localMemo }));
-    if (inq._source === 'schedule') {
-      handleScheduleMemoFn(inq.id, localMemo);
-    } else {
-      handleSaveMemoFn(inq.id, localMemo);
-    }
+    const autoResize = (el: HTMLTextAreaElement) => {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    };
+
+    useEffect(() => {
+      if (textareaRef.current) autoResize(textareaRef.current);
+    }, [localMemo]);
+
+    const handleMemoSave = () => {
+      setMemoValues(prev => ({ ...prev, [inq.id]: localMemo }));
+      if (inq._source === 'schedule') {
+        handleScheduleMemoFn(inq.id, localMemo);
+      } else {
+        handleSaveMemoFn(inq.id, localMemo);
+      }
+    };
+
+    return (
+      <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+        <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
+        <textarea
+          ref={textareaRef}
+          value={localMemo}
+          onChange={(e) => { setLocalMemo(e.target.value); autoResize(e.target); }}
+          placeholder="메모를 입력하세요..."
+          className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white overflow-hidden resize-none"
+          style={{ minHeight: '80px', height: 'auto' }}
+        />
+        <button
+          onClick={handleMemoSave}
+          disabled={savingMemo === inq.id}
+          className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
+        >
+          {savingMemo === inq.id ? '저장 중...' : '메모 저장'}
+        </button>
+      </div>
+    );
   };
 
-  return (
-    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-      <p className="text-xs font-semibold text-amber-700 mb-2">📝 메모</p>
-      <textarea
-        value={localMemo}
-        onChange={(e) => setLocalMemo(e.target.value)}
-        rows={3}
-        placeholder="메모를 입력하세요..."
-        className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none bg-white min-h-[80px]"
-      />
-      <button
-        onClick={handleMemoSave}
-        disabled={savingMemo === inq.id}
-        className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
+  // Editable detail panel component
+  const DetailEditablePanel = ({ detail, rowMeta, onClose, onDelete }: {
+    detail: Inquiry;
+    rowMeta: { channel: string; conceptName: string } | null;
+    onClose: () => void;
+    onDelete: () => void;
+  }) => {
+    const isSchedule = detail._source === 'schedule';
+    const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
+
+    const [editBrand, setEditBrand] = useState(detail.brand || '');
+    const [editChannels, setEditChannels] = useState(detail.channels || '');
+    const [editYoutube, setEditYoutube] = useState(detail.youtube_url || '');
+    const [editDeadline, setEditDeadline] = useState(detail.scheduled_date || detail.deadline || '');
+    const [editMemo, setEditMemo] = useState(detail.memo || '');
+    const [saving, setSaving] = useState<string | null>(null);
+    const memoRef = useRef<HTMLTextAreaElement>(null);
+
+    const autoResize = (el: HTMLTextAreaElement) => {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    };
+
+    useEffect(() => {
+      if (memoRef.current) autoResize(memoRef.current);
+    }, [editMemo]);
+
+    const saveField = async (field: string, value: string | null) => {
+      setSaving(field);
+      await handleSaveDetailField(entityId, field, value, isSchedule);
+      setSaving(null);
+    };
+
+    const val = (v: string | undefined | null) => v || '없음';
+
+    const ReadOnlyRow = ({ label, value }: { label: string; value?: string | null }) => (
+      <div className="flex gap-3 py-1.5 border-b border-slate-50 last:border-0">
+        <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5 font-medium">{label}</span>
+        <span className="text-slate-500 text-xs italic">{value || '없음'}</span>
+      </div>
+    );
+
+    return (
+      <div
+        className="absolute top-0 bottom-0 right-0 w-1/2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30"
+        style={{ minHeight: '600px' }}
+        ref={detailPanelRef}
+        onClick={(e) => e.stopPropagation()}
       >
-        {savingMemo === inq.id ? '저장 중...' : '메모 저장'}
-      </button>
-    </div>
-  );
-};
+        {/* Header */}
+        <div className="p-5 border-b border-slate-100 flex items-start justify-between sticky top-0 bg-white z-10">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">
+              {detail.brand || editBrand || '(브랜드 없음)'}
+              {rowMeta ? ` / ${rowMeta.channel} · ${rowMeta.conceptName}` : (detail.channels ? ' / ' + detail.channels : '')}
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isSchedule ? '일정' : '문의'} · {detail.scheduled_date ? '승인일: ' + detail.scheduled_date : '승인일 없음'}
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              {rowMeta
+                ? <RowWorkStatus inq={detail} channel={rowMeta.channel} rowKey={'detail__' + detail.id + '__' + rowMeta.channel} />
+                : <WorkStatusBadge inq={detail} />}
+              {rowMeta
+                ? <RowWorkType inq={detail} channel={rowMeta.channel} />
+                : <WorkTypeBadge inq={detail} />}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 ml-2 shrink-0">
+            <button onClick={onDelete} className="px-3 py-1 text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg">삭제</button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
+          </div>
+        </div>
+
+        {/* Editable fields */}
+        <div className="p-5 space-y-4">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">✏️ 수정 가능 정보</p>
+
+          {/* Brand */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">브랜드</label>
+            <div className="flex gap-2">
+              <input
+                value={editBrand}
+                onChange={e => setEditBrand(e.target.value)}
+                placeholder="없음"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                onClick={() => saveField('brand', editBrand || null)}
+                disabled={saving === 'brand'}
+                className="px-3 py-2 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 disabled:opacity-60"
+              >{saving === 'brand' ? '저장중' : '저장'}</button>
+            </div>
+          </div>
+
+          {/* Channels */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">채널</label>
+            <div className="flex gap-2">
+              <input
+                value={editChannels}
+                onChange={e => setEditChannels(e.target.value)}
+                placeholder="없음"
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                onClick={() => saveField('channels', editChannels || null)}
+                disabled={saving === 'channels'}
+                className="px-3 py-2 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 disabled:opacity-60"
+              >{saving === 'channels' ? '저장중' : '저장'}</button>
+            </div>
+          </div>
+
+          {/* Work type */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">작업 타입</label>
+            <div className="flex gap-2">
+              {rowMeta
+                ? <RowWorkType inq={detail} channel={rowMeta.channel} />
+                : <WorkTypeBadge inq={detail} />}
+            </div>
+          </div>
+
+          {/* Work status */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">작업 상태</label>
+            <div>
+              {rowMeta
+                ? <RowWorkStatus inq={detail} channel={rowMeta.channel} rowKey={'editpanel__' + detail.id + '__' + rowMeta.channel} />
+                : <WorkStatusBadge inq={detail} />}
+            </div>
+          </div>
+
+          {/* Deadline */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">데드라인</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={editDeadline ? editDeadline.substring(0, 10) : ''}
+                onChange={e => setEditDeadline(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                onClick={() => {
+                  const field = isSchedule ? 'deadline' : 'scheduled_date';
+                  saveField(field, editDeadline || null);
+                }}
+                disabled={saving === 'deadline' || saving === 'scheduled_date'}
+                className="px-3 py-2 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 disabled:opacity-60"
+              >{(saving === 'deadline' || saving === 'scheduled_date') ? '저장중' : '저장'}</button>
+            </div>
+            {!editDeadline && <p className="text-xs text-slate-400 mt-1">없음</p>}
+          </div>
+
+          {/* YouTube */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">유튜브 링크</label>
+            {detail.youtube_url && (
+              <div className="mb-1">
+                <a href={detail.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-xs underline break-all">{detail.youtube_url}</a>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={editYoutube}
+                onChange={e => setEditYoutube(e.target.value)}
+                placeholder="https://youtube.com/..."
+                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <button
+                onClick={() => saveField('youtube_url', editYoutube.trim() || null)}
+                disabled={saving === 'youtube_url'}
+                className="px-3 py-2 bg-red-500 text-white rounded-xl text-xs font-semibold hover:bg-red-600 disabled:opacity-60"
+              >{saving === 'youtube_url' ? '저장중' : '저장'}</button>
+            </div>
+          </div>
+
+          {/* Memo */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">메모</label>
+            <textarea
+              ref={memoRef}
+              value={editMemo}
+              onChange={(e) => { setEditMemo(e.target.value); autoResize(e.target); }}
+              placeholder="메모를 입력하세요..."
+              className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-amber-50 overflow-hidden resize-none"
+              style={{ minHeight: '80px', height: 'auto' }}
+            />
+            <button
+              onClick={() => {
+                if (isSchedule) {
+                  handleScheduleMemoWithValue(entityId, editMemo);
+                } else {
+                  handleSaveMemoWithValue(entityId, editMemo);
+                }
+              }}
+              disabled={savingMemo === entityId}
+              className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
+            >
+              {savingMemo === entityId ? '저장 중...' : '메모 저장'}
+            </button>
+          </div>
+
+          {/* Other info */}
+          {detail.upload_date && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">업로드 일시</span>
+              <span className="text-slate-700 text-xs">{detail.upload_date}</span>
+            </div>
+          )}
+          {detail.product_link && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">제품 링크</span>
+              <a href={detail.product_link} target="_blank" rel="noreferrer" className="text-blue-500 text-xs underline break-all">{detail.product_link}</a>
+            </div>
+          )}
+          {detail.material && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">활용 소재</span>
+              <span className="text-slate-700 text-xs">{detail.material}</span>
+            </div>
+          )}
+          {detail.secondary_use && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">2차 활용</span>
+              <span className="text-slate-700 text-xs">{detail.secondary_use}</span>
+            </div>
+          )}
+          {(detail as any).preferred_channels && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">선호 채널</span>
+              <span className="text-slate-700 text-xs">{(detail as any).preferred_channels}</span>
+            </div>
+          )}
+          {detail.video_concept && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">희망 컨셉</span>
+              <span className="text-slate-700 text-xs whitespace-pre-wrap">{detail.video_concept}</span>
+            </div>
+          )}
+          {detail.extra && (
+            <div className="flex gap-3">
+              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">기타</span>
+              <span className="text-slate-700 text-xs whitespace-pre-wrap">{detail.extra}</span>
+            </div>
+          )}
+
+          {/* Read-only section */}
+          <div className="mt-6 pt-4 border-t border-slate-200">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">🔒 수정 불가 정보 (문의자)</p>
+            <div className="bg-slate-50 rounded-xl p-4 space-y-1">
+              <ReadOnlyRow label="담당자" value={detail.name} />
+              <ReadOnlyRow label="이메일" value={detail.email} />
+              <ReadOnlyRow label="연락처" value={detail.phone} />
+              <ReadOnlyRow label="사업자번호" value={detail.business_number} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
   const pendingCount = inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length;
@@ -615,32 +916,32 @@ fetchManualSchedules();
         rows.push({ inq, channel: ch, conceptName: '컨셉' + brandCounter[brandKey], rowKey: inq.id + '__' + ch });
       });
     });
-    // schedules 테이블 항목도 추가 (캘린더-표 연동)
-  const scheduleRows: { inq: any; channel: string; conceptName: string; rowKey: string }[] = [];
-  const filteredSchedules = manualSchedules.filter(s => !selectedCalendarDate || (s.deadline && s.deadline.startsWith(selectedCalendarDate)));
-  filteredSchedules.forEach((s) => {
-    scheduleRows.push({
-      inq: {
-        ...s,
-        id: s.id,
-        brand: s.brand_name || s.product_name || '-',
-        channels: s.channel || '-',
-        name: s.manager_name || '-',
-        status: 'approved',
-        scheduled_date: s.deadline ? s.deadline.substring(0, 10) : null,
-        work_status: s.work_status || '시작 전',
-        work_type: s.work_type || '콘티',
-        youtube_url: s.youtube_url || null,
-        memo: s.memo || null,
-        _source: 'schedule',
-        _scheduleId: s.id,
-      },
-      channel: s.channel || '-',
-      conceptName: s.product_name || s.brand_name || '-',
-      rowKey: 'schedule__' + s.id,
+    const scheduleRows: { inq: any; channel: string; conceptName: string; rowKey: string }[] = [];
+    const filteredSchedules = manualSchedules.filter(s => !selectedCalendarDate || (s.deadline && s.deadline.startsWith(selectedCalendarDate)));
+    filteredSchedules.forEach((s) => {
+      scheduleRows.push({
+        inq: {
+          ...s,
+          id: s.id,
+          brand: s.brand_name || s.product_name || '-',
+          channels: s.channel || '-',
+          name: s.manager_name || '-',
+          status: 'approved',
+          scheduled_date: s.deadline ? s.deadline.substring(0, 10) : null,
+          deadline: s.deadline || null,
+          work_status: s.work_status || '시작 전',
+          work_type: s.work_type || '콘티',
+          youtube_url: s.youtube_url || null,
+          memo: s.memo || null,
+          _source: 'schedule',
+          _scheduleId: s.id,
+        },
+        channel: s.channel || '-',
+        conceptName: s.product_name || s.brand_name || '-',
+        rowKey: 'schedule__' + s.id,
+      });
     });
-  });
-  return [...rows, ...scheduleRows];
+    return [...rows, ...scheduleRows];
   })();
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
@@ -649,7 +950,7 @@ fetchManualSchedules();
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex" onClick={() => setStatusDropdown(null)}>
+    <div className="min-h-screen bg-slate-50 flex" onClick={() => { setStatusDropdown(null); }}>
       <aside className="w-56 bg-white border-r border-slate-200 flex flex-col fixed h-full z-10">
         <div className="p-5 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -692,242 +993,235 @@ fetchManualSchedules();
 
       <main className="flex-1 ml-56 p-8">
 
-        {activeMenu === 'inquiries' && (
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div><h1 className="text-2xl font-bold text-slate-800 mb-1">광고 문의</h1><p className="text-slate-500 text-sm">홈페이지에서 접수된 브랜드 광고 문의 목록입니다.</p></div>
-              <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+      {activeMenu === 'inquiries' && (
+        <div>
+          <div className="mb-6 flex items-center justify-between">
+            <div><h1 className="text-2xl font-bold text-slate-800 mb-1">광고 문의</h1><p className="text-slate-500 text-sm">홈페이지에서 접수된 브랜드 광고 문의 목록입니다.</p></div>
+            <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+          </div>
+          <div className="flex gap-2 border-b border-slate-200 mb-6">
+            {([
+              { key: 'all', label: '전체' },
+              { key: 'pending', label: '대기중' },
+              { key: 'approved', label: '승인' },
+              { key: 'rejected', label: '거절' },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setInquiryTab(tab.key)}
+                className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${inquiryTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                {tab.label}
+                <span className="ml-2 text-xs text-slate-400">
+                  {tab.key === 'all'
+                    ? inquiries.filter(i => i.type === 'ad').length
+                    : tab.key === 'pending'
+                    ? inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length
+                    : inquiries.filter(i => i.type === 'ad' && i.ad_review_status === tab.key).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          {loading ? <div className="flex items-center justify-center h-40 text-slate-400">불러오는 중...</div>
+          : inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (!i.ad_review_status || i.ad_review_status === 'pending') : i.ad_review_status === inquiryTab))).length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
+          : <div className="space-y-4">
+            {inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (!i.ad_review_status || i.ad_review_status === 'pending') : i.ad_review_status === inquiryTab))).map((inq) => (
+              <div key={inq.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50" onClick={() => setExpanded(expanded === inq.id ? null : inq.id)}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg shrink-0">📢</div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {inq.status === 'approved' && inq.scheduled_date && <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{formatDate(inq.scheduled_date)}</span>}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(inq.id, '광고 문의'); }}
+                      className="text-xs font-medium text-slate-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-all"
+                    >삭제</button>
+                    <span className="text-slate-400 text-sm">{expanded === inq.id ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+                {expanded === inq.id && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 bg-slate-50 rounded-xl p-4">
+                      <InfoRow label="브랜드" value={inq.brand} />
+                      <InfoRow label="업로드 일시" value={inq.upload_date} />
+                      <InfoRow label="희망 채널" value={inq.channels} />
+                      <InfoRow label="제품 링크" value={inq.product_link} />
+                      <InfoRow label="활용 소재" value={inq.material} />
+                      <InfoRow label="2차 활용" value={inq.secondary_use} />
+                      <InfoRow label="선호 채널" value={(inq as any).preferred_channels} />
+                      <InfoRow label="영상 컨셉" value={inq.video_concept} />
+                      <InfoRow label="기타" value={inq.extra} />
+                      <InfoRow label="담당자" value={inq.name + (inq.phone ? ' · ' + inq.phone : '')} />
+                      <InfoRow label="이메일" value={inq.email} />
+                      <InfoRow label="사업자번호" value={inq.business_number} />
+                      {inq.bank_account_image && (
+                        <div className="flex gap-2 md:col-span-2">
+                          <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">통장 사본</span>
+                          <a href={inq.bank_account_image} target="_blank" rel="noreferrer" download className="text-xs text-blue-600 hover:underline">📎 이미지 다운로드 / 보기</a>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 px-1 pt-2">
+                      <span className="text-xs text-slate-500">광고 문의 검토:</span>
+                      {(inq.ad_review_status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700">승인됨</span>}
+                      {(inq.ad_review_status === 'rejected') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-600">거절됨</span>}
+                      {(!inq.ad_review_status || inq.ad_review_status === 'pending') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
+                      {(!inq.ad_review_status || inq.ad_review_status === 'pending') && (
+                        <>
+                          <button onClick={() => { const dt = prompt('시작 날짜을 입력하세요 (YYYY-MM-DD)', new Date().toISOString().slice(0,10)); if (dt) handleAdReview(inq.id, 'approved', dt); }} className="ml-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold">승인</button>
+                          <button onClick={() => handleAdReview(inq.id, 'rejected')} className="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold">거절</button>
+                        </>
+                      )}
+                      {(inq.ad_review_status === 'approved' || inq.ad_review_status === 'rejected') && (
+                        <button onClick={() => handleAdReview(inq.id, 'pending')} className="ml-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">되돌리기</button>
+                      )}
+                    </div>
+                    {inq.status === 'pending' && (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <input type="date" value={selectedDates[inq.id] || ''} onChange={(e) => setSelectedDates({ ...selectedDates, [inq.id]: e.target.value })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        <button onClick={() => handleApprove(inq)} className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm">✓ 날짜 선택 후 승인</button>
+                        <button onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }} className="px-5 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold">✕ 거절</button>
+                      </div>
+                    )}
+                    {(inq.work_status === '컴펌 완료') && (
+                      <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                        <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
+                        {inq.youtube_url && <div className="mb-2"><a href={inq.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-sm underline">{inq.youtube_url}</a></div>}
+                        <div className="flex gap-2">
+                          <input type="url" placeholder="https://youtube.com/watch?v=..." value={ytInputs[inq.id] ?? (inq.youtube_url || '')} onChange={(e) => setYtInputs({ ...ytInputs, [inq.id]: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                          <button onClick={() => handleSaveYoutube(inq.id)} className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600">저장</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          }
+        </div>
+      )}
+
+      {activeMenu === 'approval' && (
+        <div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800 mb-1">✅ 승인 목록</h1>
+                <p className="text-slate-500 text-sm">문의를 승인하거나 거절할 수 있습니다.</p>
+              </div>
             </div>
-            <div className="flex gap-2 border-b border-slate-200 mb-6">
+            <div className="flex gap-2 border-b border-slate-200">
               {([
                 { key: 'all', label: '전체' },
-                { key: 'pending', label: '대기중' },
                 { key: 'approved', label: '승인' },
                 { key: 'rejected', label: '거절' },
-              ] as const).map(tab => (
+              ] as const).map(t => (
                 <button
-                  key={tab.key}
-                  onClick={() => setInquiryTab(tab.key)}
-                  className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${inquiryTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  key={t.key}
+                  onClick={() => setApprovalTab(t.key)}
+                  className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${approvalTab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
-                  {tab.label}
+                  {t.label}
                   <span className="ml-2 text-xs text-slate-400">
-                    {tab.key === 'all'
-                      ? inquiries.filter(i => i.type === 'ad').length
-                      : tab.key === 'pending'
-                      ? inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length
-                      : inquiries.filter(i => i.type === 'ad' && i.ad_review_status === tab.key).length}
+                    {inquiries.filter(i => i.type === 'signup' && (t.key === 'all' ? (!i.status || i.status === 'pending') : i.status === t.key)).length}
                   </span>
                 </button>
               ))}
             </div>
-            {loading ? <div className="flex items-center justify-center h-40 text-slate-400">불러오는 중...</div>
-              : inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (!i.ad_review_status || i.ad_review_status === 'pending') : i.ad_review_status === inquiryTab))).length === 0 ? <div className="bg-white rounded-2xl p-12 text-center border border-slate-100"><div className="text-4xl mb-4">📭</div><p className="text-slate-500">아직 문의가 없습니다.</p></div>
-              : <div className="space-y-4">
-                {inquiries.filter(i => i.type === 'ad' && (inquiryTab === 'all' || (inquiryTab === 'pending' ? (!i.ad_review_status || i.ad_review_status === 'pending') : i.ad_review_status === inquiryTab))).map((inq) => (
-                  <div key={inq.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50" onClick={() => setExpanded(expanded === inq.id ? null : inq.id)}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-lg shrink-0">📢</div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1"><span className="font-bold text-slate-800">{inq.brand || '브랜드 미입력'}</span></div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {inq.status === 'approved' && inq.scheduled_date && <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{formatDate(inq.scheduled_date)}</span>}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(inq.id, '광고 문의'); }}
-                          className="text-xs font-medium text-slate-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-all"
-                        >삭제</button>
-                        <span className="text-slate-400 text-sm">{expanded === inq.id ? '▲' : '▼'}</span>
-                      </div>
+          </div>
+          <div className="space-y-3">
+            {inquiries
+              .filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .map(inq => (
+                <div key={inq.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-slate-800 truncate">{inq.brand || '브랜드 미입력'}</span>
+                      {inq.status === 'approved' && <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">승인</span>}
+                      {inq.status === 'rejected' && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">거절</span>}
+                      {(!inq.status || inq.status === 'pending') && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">대기</span>}
                     </div>
-                    {expanded === inq.id && (
-                      <div className="border-t border-slate-100 p-5 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 bg-slate-50 rounded-xl p-4">
-                          <InfoRow label="브랜드" value={inq.brand} />
-                          <InfoRow label="업로드 일시" value={inq.upload_date} />
-                          <InfoRow label="희망 채널" value={inq.channels} />
-                          <InfoRow label="제품 링크" value={inq.product_link} />
-                          <InfoRow label="활용 소재" value={inq.material} />
-                          <InfoRow label="2차 활용" value={inq.secondary_use} />
-                <InfoRow label="선호 채널" value={(inq as any).preferred_channels} />
-                          <InfoRow label="영상 컨셉" value={inq.video_concept} />
-                          <InfoRow label="기타" value={inq.extra} />
-                          <InfoRow label="담당자" value={inq.name + (inq.phone ? ' · ' + inq.phone : '')} />
-                          <InfoRow label="이메일" value={inq.email} />
-                          <InfoRow label="사업자번호" value={inq.business_number} />
-                          {inq.bank_account_image && (
-                            <div className="flex gap-2 md:col-span-2">
-                              <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">통장 사본</span>
-                              <a href={inq.bank_account_image} target="_blank" rel="noreferrer" download className="text-xs text-blue-600 hover:underline">📎 이미지 다운로드 / 보기</a>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 px-1 pt-2">
-                          <span className="text-xs text-slate-500">광고 문의 검토:</span>
-                          {(inq.ad_review_status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700">승인됨</span>}
-                          {(inq.ad_review_status === 'rejected') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-600">거절됨</span>}
-                          {(!inq.ad_review_status || inq.ad_review_status === 'pending') && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
-                          {(!inq.ad_review_status || inq.ad_review_status === 'pending') && (
-                            <>
-                              <button onClick={() => { const dt = prompt('시작 날짜을 입력하세요 (YYYY-MM-DD)', new Date().toISOString().slice(0,10)); if (dt) handleAdReview(inq.id, 'approved', dt); }} className="ml-auto px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold">승인</button>
-                              <button onClick={() => handleAdReview(inq.id, 'rejected')} className="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold">거절</button>
-                            </>
-                          )}
-                          {(inq.ad_review_status === 'approved' || inq.ad_review_status === 'rejected') && (
-                            <button onClick={() => handleAdReview(inq.id, 'pending')} className="ml-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">되돌리기</button>
-                          )}
-                        </div>
-                        {inq.status === 'pending' && (
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <input type="date" value={selectedDates[inq.id] || ''} onChange={(e) => setSelectedDates({ ...selectedDates, [inq.id]: e.target.value })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                            <button onClick={() => handleApprove(inq)} className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm">✓ 날짜 선택 후 승인</button>
-                            <button onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }} className="px-5 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold">✕ 거절</button>
-                          </div>
-                        )}
-                        {(inq.work_status === '컴펌 완료') && (
-                          <div className="p-4 bg-green-50 rounded-xl border border-green-100">
-                            <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
-                            {inq.youtube_url && <div className="mb-2"><a href={inq.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-sm underline">{inq.youtube_url}</a></div>}
-                            <div className="flex gap-2">
-                              <input type="url" placeholder="https://youtube.com/watch?v=..." value={ytInputs[inq.id] ?? (inq.youtube_url || '')} onChange={(e) => setYtInputs({ ...ytInputs, [inq.id]: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
-                              <button onClick={() => handleSaveYoutube(inq.id)} className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600">저장</button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    <div className="text-sm text-slate-500 truncate">{inq.name} · {inq.email} · {inq.channels}</div>
+                    <div className="text-xs text-slate-400 mt-1">제출일: {new Date(inq.created_at).toLocaleDateString('ko-KR')}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {(!inq.status || inq.status === 'pending') && (
+                      <>
+                        <button onClick={() => handleApproveSimple(inq.id)} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all">승인</button>
+                        <button onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all">거절</button>
+                      </>
                     )}
+                    <button onClick={() => handleDelete(inq.id, '승인 목록')} className="px-3 py-2 text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">삭제</button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             }
-          </div>
-        )}
-
-        {activeMenu === 'approval' && (
-          <div>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-800 mb-1">✅ 승인 목록</h1>
-                  <p className="text-slate-500 text-sm">문의를 승인하거나 거절할 수 있습니다.</p>
-                </div>
+            {inquiries.filter(i => i.type === 'signup').filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab).length === 0 && (
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                <p className="text-slate-500">해당하는 문의가 없습니다.</p>
               </div>
-              <div className="flex gap-2 border-b border-slate-200">
-                {([
-                  { key: 'all', label: '전체' },
-                  { key: 'approved', label: '승인' },
-                  { key: 'rejected', label: '거절' },
-                ] as const).map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setApprovalTab(t.key)}
-                    className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${approvalTab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {t.label}
-                    <span className="ml-2 text-xs text-slate-400">
-                      {inquiries.filter(i => i.type === 'signup' && (t.key === 'all' ? (!i.status || i.status === 'pending') : i.status === t.key)).length}
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeMenu === 'table' && (
+        <div
+          className="relative"
+          onClick={() => {
+            if (selectedDetail) {
+              setSelectedDetail(null);
+              setSelectedRowMeta(null);
+            }
+          }}
+        >
+          <div className="w-full">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1>
+                <p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p>
+                {selectedCalendarDate && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-700 font-medium">
+                      <span>📅</span>
+                      {formatDate(selectedCalendarDate)} 필터 적용 중
                     </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {inquiries
-                .filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab)
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                .map(inq => (
-                  <div key={inq.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-slate-800 truncate">{inq.brand || '브랜드 미입력'}</span>
-                        {inq.status === 'approved' && <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">승인</span>}
-                        {inq.status === 'rejected' && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">거절</span>}
-                        {(!inq.status || inq.status === 'pending') && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">대기</span>}
-                      </div>
-                      <div className="text-sm text-slate-500 truncate">
-                        {inq.name} · {inq.email} · {inq.channels}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        제출일: {new Date(inq.created_at).toLocaleDateString('ko-KR')}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {(!inq.status || inq.status === 'pending') && (
-                        <>
-                          <button
-                            onClick={() => handleApproveSimple(inq.id)}
-                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
-                          >승인</button>
-                          <button
-                            onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }}
-                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
-                          >거절</button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => handleDelete(inq.id, '승인 목록')}
-                        className="px-3 py-2 text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                      >삭제</button>
-                    </div>
+                    <button
+                      onClick={() => setSelectedCalendarDate(null)}
+                      className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
+                    >✕ 필터 해제</button>
                   </div>
-                ))
-              }
-              {inquiries.filter(i => i.type === 'signup').filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab).length === 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                  <p className="text-slate-500">해당하는 문의가 없습니다.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-                {activeMenu === 'table' && (
-          <div className="relative">
-            <div className="w-full">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-<h1 className="text-2xl font-bold text-slate-800 mb-1">표 보기</h1>
-<p className="text-slate-500 text-sm">행을 클릭하면 우측에 상세 내용이 표시됩니다.</p>
-{selectedCalendarDate && (
-<div className="mt-2 flex items-center gap-2">
-<span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-700 font-medium">
-<span>📅</span>
-{formatDate(selectedCalendarDate)} 필터 적용 중
-</span>
-<button
-onClick={() => setSelectedCalendarDate(null)}
-className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
->
-✕ 필터 해제
-</button>
-</div>
-)}
-</div>
-                <div className="flex gap-2">
-                  <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
-                  <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
-                </div>
+                )}
               </div>
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브'].map(h => (
-                        <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableRows.map((row, idx) => {
-                      const inq = row.inq;
-                      const ch = row.channel;
-                      const sa = (inq.storyboard_assignees as Record<string, string> | null | undefined) || {};
-                      const va = (inq.video_assignees as Record<string, string> | null | undefined) || {};
-                      return (
-                      <tr key={row.rowKey} onClick={() => { setSelectedDetail(inq); setSelectedRowMeta({ channel: row.channel, conceptName: row.conceptName }); }} className={`border-b border-slate-50 cursor-pointer transition-all ${(selectedDetail?.id === inq.id && selectedRowMeta?.channel === row.channel) ? 'bg-blue-100' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
+              <div className="flex gap-2">
+                <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+                <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '데드라인', '유튜브'].map(h => (
+                      <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableRows.map((row, idx) => {
+                    const inq = row.inq;
+                    const ch = row.channel;
+                    const sa = (inq.storyboard_assignees as Record<string, string> | null | undefined) || {};
+                    const va = (inq.video_assignees as Record<string, string> | null | undefined) || {};
+                    const deadlineStr = inq.deadline || inq.scheduled_date || null;
+                    return (
+                      <tr key={row.rowKey} onClick={(e) => { e.stopPropagation(); setSelectedDetail(inq); setSelectedRowMeta({ channel: row.channel, conceptName: row.conceptName }); }} className={`border-b border-slate-50 cursor-pointer transition-all ${(selectedDetail?.id === inq.id && selectedRowMeta?.channel === row.channel) ? 'bg-blue-100' : inq.youtube_url ? 'bg-pink-50 hover:bg-pink-100' : 'hover:bg-slate-50'}`}>
                         <td className="px-3 py-2 text-slate-400 text-xs">{idx + 1}</td>
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
@@ -953,483 +1247,467 @@ className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:
                           <RowWorkStatus inq={inq} channel={ch} rowKey={row.rowKey} />
                         </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
+                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
+                          {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
+                        </td>
                         <td className="px-3 py-2">
                           {inq.youtube_url
                             ? <a href={inq.youtube_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-red-500 text-xs font-semibold hover:underline">▶ YT</a>
                             : <span className="text-slate-300 text-xs">-</span>}
                         </td>
                       </tr>
-                      );
-                    })}
-                    </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            {selectedDetail && (
-              <div className="absolute top-0 bottom-0 right-0 w-1/2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto z-30" style={{ minHeight: '600px' }}>
-                <div className="p-5 border-b border-slate-100 flex items-start justify-between">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-800">{selectedDetail.brand} {selectedRowMeta ? `/ ${selectedRowMeta.channel} · ${selectedRowMeta.conceptName}` : (selectedDetail.channels ? '/ ' + selectedDetail.channels : '')}</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">승인일: {selectedDetail.scheduled_date || '-'}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      {selectedRowMeta
-                        ? <RowWorkStatus inq={selectedDetail} channel={selectedRowMeta.channel} rowKey={'detail__' + selectedDetail.id + '__' + selectedRowMeta.channel} />
-                        : <WorkStatusBadge inq={selectedDetail} />}
-                      {selectedRowMeta
-                        ? <RowWorkType inq={selectedDetail} channel={selectedRowMeta.channel} />
-                        : <WorkTypeBadge inq={selectedDetail} />}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-2 shrink-0">
-                <button onClick={() => {
-if (selectedDetail) {
-if ((selectedDetail as any)._source === 'schedule') {
-handleScheduleDelete((selectedDetail as any)._scheduleId || selectedDetail.id);
-} else {
-handleDelete(selectedDetail.id, '표 보기');
-}
-setSelectedDetail(null);
-setSelectedRowMeta(null);
-}
-}} className="px-3 py-1 text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg">삭제</button>
-                <button onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
-              </div>
-                </div>
-                <div className="p-5 space-y-2 border-b border-slate-100">
-                  {[
-                    ['브랜드', selectedDetail.brand],
-                    ['채널', selectedDetail.channels],
-                    ['업로드 일시', selectedDetail.upload_date],
-                    ['담당자', selectedDetail.name],
-                    ['이메일', selectedDetail.email],
-                    ['연락처', selectedDetail.phone],
-                    ['사업자번호', selectedDetail.business_number],
-                    ['제품 링크', selectedDetail.product_link],
-                    ['활용 소재', selectedDetail.material],
-                    ['2차 활용', selectedDetail.secondary_use],
-                ['선호 채널', (selectedDetail as any).preferred_channels],
-                    ['희망 컨셉', selectedDetail.video_concept],
-                    ['기타 전달', selectedDetail.extra],
-                  ].filter(([, v]) => v).map(([label, value]) => (
-                    <div key={label} className="flex gap-3">
-                      <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">{label}</span>
-                      <span className="text-slate-700 text-xs whitespace-pre-wrap">{value}</span>
-                    </div>
-                  ))}
-                </div>
-                {(selectedDetail.work_status === '컴펌 완료') && (
-                  <div className="p-5 border-b border-slate-100 bg-green-50">
-                    <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
-                    {selectedDetail.youtube_url && <div className="mb-2"><a href={selectedDetail.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-xs underline break-all">{selectedDetail.youtube_url}</a></div>}
-                    <div className="flex gap-2">
-                      <input type="url" placeholder="https://youtube.com/..." value={ytInputs[selectedDetail.id] ?? (selectedDetail.youtube_url || '')} onChange={(e) => setYtInputs({ ...ytInputs, [selectedDetail.id]: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
-                      <button onClick={() => handleSaveYoutube(selectedDetail.id)} className="px-3 py-2 bg-red-500 text-white rounded-xl text-xs font-semibold hover:bg-red-600">저장</button>
-                    </div>
-                  </div>
-                )}
-                <div className="p-4 border-b border-slate-100">
-                  <MemoSection inq={selectedDetail} memoValues={memoValues} setMemoValues={setMemoValues} savingMemo={savingMemo} setSavingMemo={setSavingMemo} handleSaveMemoFn={handleSaveMemoWithValue} handleScheduleMemoFn={handleScheduleMemoWithValue} />
-                </div>
-              </div>
-            )}
           </div>
-        )}
 
-        {activeMenu === 'trash' && (
-          <div>
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800 mb-1">🗑️ 휴지통</h1>
-                <p className="text-slate-500 text-sm">삭제된 문의 목록입니다. 복구하거나 영구 삭제할 수 있습니다.</p>
-              </div>
-              <div className="flex gap-2">
+          {selectedDetail && (
+            <>
+              <div
+                className="absolute inset-0 z-20"
+                onClick={() => { setSelectedDetail(null); setSelectedRowMeta(null); }}
+              />
+              <DetailEditablePanel
+                detail={selectedDetail}
+                rowMeta={selectedRowMeta}
+                onClose={() => { setSelectedDetail(null); setSelectedRowMeta(null); }}
+                onDelete={() => {
+                  if (selectedDetail) {
+                    if (selectedDetail._source === 'schedule') {
+                      handleScheduleDelete(selectedDetail._scheduleId || selectedDetail.id);
+                    } else {
+                      handleDelete(selectedDetail.id, '표 보기');
+                    }
+                    setSelectedDetail(null);
+                    setSelectedRowMeta(null);
+                  }
+                }}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {activeMenu === 'trash' && (
+        <div>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">🗑️ 휴지통</h1>
+              <p className="text-slate-500 text-sm">삭제된 문의 목록입니다. 복구하거나 영구 삭제할 수 있습니다.</p>
+            </div>
+            <div className="flex gap-2">
               <button onClick={fetchTrash} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
               <button onClick={handleEmptyTrash} className="px-4 py-2 text-sm text-white bg-red-500 rounded-xl hover:bg-red-600 font-semibold">🗑️ 전체 삭제</button>
             </div>
+          </div>
+          {trashList.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
+              <div className="text-4xl mb-4">🗑️</div>
+              <p className="text-slate-500">휴지통이 비어있습니다.</p>
             </div>
-            {trashList.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
-                <div className="text-4xl mb-4">🗑️</div>
-                <p className="text-slate-500">휴지통이 비어있습니다.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {trashList.map((inq) => (
-                  <div key={inq.id} className="bg-white rounded-2xl border border-red-100 shadow-sm p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-lg shrink-0">🗑️</div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-bold text-slate-700">{inq.brand || '브랜드 미입력'}</span>
-                          {inq.deleted_from && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">출처: {inq.deleted_from}</span>}
-                          {inq.channels && <span className="text-xs text-slate-400">{inq.channels}</span>}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          {inq.name} · {inq.email}
-                          {inq.deleted_at && <span className="ml-2">삭제: {new Date(inq.deleted_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
-                        </div>
+          ) : (
+            <div className="space-y-3">
+              {trashList.map((inq) => (
+                <div key={inq.id} className="bg-white rounded-2xl border border-red-100 shadow-sm p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-lg shrink-0">🗑️</div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-bold text-slate-700">{inq.brand || '브랜드 미입력'}</span>
+                        {inq.deleted_from && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">출처: {inq.deleted_from}</span>}
+                        {inq.channels && <span className="text-xs text-slate-400">{inq.channels}</span>}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {inq.name} · {inq.email}
+                        {inq.deleted_at && <span className="ml-2">삭제: {new Date(inq.deleted_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
                       </div>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleRestore(inq.id)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-all">↩ 복구</button>
+                    <button onClick={() => handlePermanentDelete(inq.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all">완전 삭제</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeMenu === 'staff' && currentEmail === 'tkddl@whrcompany.com' && (
+        <div>
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-slate-800 mb-1">👥 직원 관리</h1>
+            <p className="text-slate-500 text-sm">직원에게 권한을 부여하세요.</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+            <h2 className="text-base font-bold text-slate-800 mb-4">새 직원 추가</h2>
+            <div className="flex gap-2">
+              <input type="email" placeholder="이메일" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              <select id="newStaffRole" defaultValue="worker" className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white">
+                <option value="admin">관리자</option>
+                <option value="mid">중간 관리자</option>
+                <option value="worker">작업자</option>
+              </select>
+              <button onClick={() => { const sel = document.getElementById('newStaffRole') as HTMLSelectElement; handleAddStaff(newStaffEmail.trim(), sel.value); }} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600">추가</button>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">직원 목록</h2>
+              <span className="text-xs text-slate-400">{staffList.length}명</span>
+            </div>
+            {staffList.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-sm">등록된 직원이 없습니다.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {staffList.map((s) => (
+                  <div key={s.user_email} className="px-6 py-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
+                        {(s as any).name ? <span>{(s as any).name}</span> : null}
+                        <span className="text-slate-500 text-xs font-normal">{s.user_email}</span>
+                        {(s as any).status === 'pending' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
+                        {(s as any).status === 'rejected' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">거부됨</span>}
+                        {(!(s as any).status || (s as any).status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">승인됨</span>}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">{s.role === 'admin' ? '관리자' : s.role === 'mid' ? '중간 관리자' : '작업자'}</div>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleRestore(inq.id)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-all">↩ 복구</button>
-                      <button onClick={() => handlePermanentDelete(inq.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all">완전 삭제</button>
+                      {(s as any).status === 'pending' && (
+                        <>
+                          <select defaultValue="worker" onChange={(e) => (s as any).pendingRole = e.target.value} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
+                            <option value="admin">관리자</option>
+                            <option value="mid">중간 관리자</option>
+                            <option value="worker">작업자</option>
+                          </select>
+                          <button onClick={() => handleApproveStaff(s.user_email, (s as any).pendingRole || 'worker')} className="px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold">승인</button>
+                          <button onClick={() => handleRejectStaff(s.user_email)} className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold">거부</button>
+                        </>
+                      )}
+                      {(s as any).status !== 'pending' && (
+                        <select value={s.role} onChange={(e) => handleAddStaff(s.user_email, e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
+                          <option value="admin">관리자</option>
+                          <option value="mid">중간 관리자</option>
+                          <option value="worker">작업자</option>
+                        </select>
+                      )}
+                      <button onClick={() => handleRemoveStaff(s.user_email)} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-100">삭제</button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        )}
-        {activeMenu === 'staff' && currentEmail === 'tkddl@whrcompany.com' && (
-          <div>
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-800 mb-1">👥 직원 관리</h1>
-              <p className="text-slate-500 text-sm">직원에게 권한을 부여하세요. (관리자만 영구 삭제 가능)</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-              <h2 className="text-base font-bold text-slate-800 mb-4">새 직원 추가</h2>
-              <div className="flex gap-2">
-                <input type="email" placeholder="이메일 (예: hong@whrcompany.com)" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
-                <select id="newStaffRole" defaultValue="worker" className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white">
-                  <option value="admin">관리자</option>
-                  <option value="mid">중간 관리자</option>
-                  <option value="worker">작업자</option>
-                </select>
-                <button onClick={() => { const sel = document.getElementById('newStaffRole') as HTMLSelectElement; handleAddStaff(newStaffEmail.trim(), sel.value); }} className="px-4 py-2 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600">추가</button>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-base font-bold text-slate-800">직원 목록</h2>
-                <span className="text-xs text-slate-400">{staffList.length}명</span>
-              </div>
-              {staffList.length === 0 ? (
-                <div className="p-12 text-center text-slate-400 text-sm">등록된 직원이 없습니다.</div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {staffList.map((s) => (
-                    <div key={s.user_email} className="px-6 py-4 flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
-                          {s.name ? <span>{s.name}</span> : null}
-                          <span className="text-slate-500 text-xs font-normal">{s.user_email}</span>
-                          {s.status === 'pending' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700">대기중</span>}
-                          {s.status === 'rejected' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">거부됨</span>}
-                          {(!s.status || s.status === 'approved') && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">승인됨</span>}
-                        </div>
-                        <div className="text-xs text-slate-400 mt-0.5">{s.role === 'admin' ? '관리자' : s.role === 'mid' ? '중간 관리자' : '작업자'}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {s.status === 'pending' && (
-                          <>
-                            <select defaultValue="worker" onChange={(e) => (s as { pendingRole?: string }).pendingRole = e.target.value} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
-                              <option value="admin">관리자</option>
-                              <option value="mid">중간 관리자</option>
-                              <option value="worker">작업자</option>
-                            </select>
-                            <button onClick={() => handleApproveStaff(s.user_email, (s as { pendingRole?: string }).pendingRole || 'worker')} className="px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold">승인</button>
-                            <button onClick={() => handleRejectStaff(s.user_email)} className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold">거부</button>
-                          </>
-                        )}
-                        {s.status !== 'pending' && (<select value={s.role} onChange={(e) => handleAddStaff(s.user_email, e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white">
-                          <option value="admin">관리자</option>
-                          <option value="mid">중간 관리자</option>
-                          <option value="worker">작업자</option>
-                        </select>)}
-                        <button onClick={() => handleRemoveStaff(s.user_email)} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-semibold hover:bg-red-100">삭제</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {activeMenu === 'channels' && (
-          <div>
-            <div className="mb-8 flex items-end justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800 mb-1">🎤 채널 설정</h1>
-                <p className="text-slate-500 text-sm">채널별 담당자와 TTS 설정을 관리하세요.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newChannelName}
-                  onChange={(e) => setNewChannelName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { handleAddChannel(); } }}
-                  placeholder="새 채널 이름"
-                  className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-                <button onClick={handleAddChannel} className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold shadow-sm transition-all">+ 추가</button>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500">
-                <div className="col-span-3">채널</div>
-                <div className="col-span-4">담당자 이름</div>
-                <div className="col-span-4">TTS</div>
-                <div className="col-span-1 text-right">삭제</div>
-              </div>
-              {Object.keys(channelSettings).sort((a, b) => a.localeCompare(b, 'ko')).map((ch) => {
-                const cur = channelSettings[ch] || { person_name: '', tts_info: '' };
-                return (
-                  <div key={ch} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50/40">
-                    <div className="col-span-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>{ch}
-                    </div>
-                    <div className="col-span-4">
-                      <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                    </div>
-                    <div className="col-span-4">
-                      <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                    </div>
-                    <div className="col-span-1 text-right">
-                      {canDeletePermanent() && (<button onClick={() => handleDeleteChannel(ch)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>)}
-                    </div>
-                  </div>
-                );
-              })}
-              {Object.keys(channelSettings).length === 0 && (
-                <div className="px-4 py-8 text-center text-sm text-slate-400">채널이 없습니다. 위에서 추가하세요.</div>
-              )}
-              <p className="px-4 py-3 text-[11px] text-slate-400">입력 후 다른 곳을 클릭하면 자동 저장됩니다.</p>
-            </div>
-          </div>
-        )}
+        </div>
+      )}
 
-        {activeMenu === 'calendar' && (
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div><h1 className="text-2xl font-bold text-slate-800 mb-1">캘린더</h1><p className="text-slate-500 text-sm">승인된 광고 일정을 확인합니다.</p></div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentMonth(new Date())}
-                  className="px-4 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-all"
-                >오늘</button>
-                <button
-                  onClick={() => setShowAddPanel(true)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"
-                >
-                  <span className="text-base leading-none">+</span> 일정 추가
-                </button>
+      {activeMenu === 'channels' && (
+        <div>
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">🎤 채널 설정</h1>
+              <p className="text-slate-500 text-sm">채널별 담당자와 TTS 설정을 관리하세요.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { handleAddChannel(); } }}
+                placeholder="새 채널 이름"
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <button onClick={handleAddChannel} className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold shadow-sm transition-all">+ 추가</button>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500">
+              <div className="col-span-3">채널</div>
+              <div className="col-span-4">담당자 이름</div>
+              <div className="col-span-4">TTS</div>
+              <div className="col-span-1 text-right">삭제</div>
+            </div>
+            {Object.keys(channelSettings).sort((a, b) => a.localeCompare(b, 'ko')).map((ch) => {
+              const cur = channelSettings[ch] || { person_name: '', tts_info: '' };
+              return (
+                <div key={ch} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50/40">
+                  <div className="col-span-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>{ch}
+                  </div>
+                  <div className="col-span-4">
+                    <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div className="col-span-4">
+                    <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div className="col-span-1 text-right">
+                    {canDeletePermanent() && (<button onClick={() => handleDeleteChannel(ch)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>)}
+                  </div>
+                </div>
+              );
+            })}
+            {Object.keys(channelSettings).length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-slate-400">채널이 없습니다.</div>
+            )}
+            <p className="px-4 py-3 text-[11px] text-slate-400">입력 후 다른 곳을 클릭하면 자동 저장됩니다.</p>
+          </div>
+        </div>
+      )}
+
+      {activeMenu === 'calendar' && (
+        <div>
+          <div className="mb-6 flex items-center justify-between">
+            <div><h1 className="text-2xl font-bold text-slate-800 mb-1">캘린더</h1><p className="text-slate-500 text-sm">승인된 광고 일정을 확인합니다.</p></div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-all">오늘</button>
+              <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
               <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
                 <button onClick={() => setCalendarView('week')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>주간</button>
                 <button onClick={() => setCalendarView('month')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${calendarView === 'month' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>월간</button>
               </div>
+            </div>
+          </div>
+          {calendarView === 'month' ? (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">‹</button>
+                <h2 className="text-lg font-bold text-slate-800">{year}년 {month + 1}월</h2>
+                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">›</button>
+              </div>
+              <div className="grid grid-cols-7 border-b border-slate-100">
+                {['일','월','화','수','목','금','토'].map((d, i) => (
+                  <div key={d} className={`text-center py-2 text-xs font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'}`}>{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {Array.from({ length: firstDay }).map((_, i) => (
+                  <div key={'p' + i} className="border-r border-b border-slate-50 min-h-24 bg-slate-50/50" />
+                ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const events = getApprovedForDate(dateStr);
+                  const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
+                  const dow = (firstDay + i) % 7;
+                  return (
+                    <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
+                      <div className={`text-xs font-semibold mb-1 ${isToday ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{day}</div>
+                      <div className="space-y-1">
+                        {events.slice(0, 3).map(ev => (
+                          <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200" title={ev.brand}>{ev.brand}</div>
+                        ))}
+                        {events.length > 3 && <div className="text-[10px] text-slate-400">+{events.length - 3}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            {calendarView === 'month' ? (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                  <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">‹</button>
-                  <h2 className="text-lg font-bold text-slate-800">{year}년 {month + 1}월</h2>
-                  <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">›</button>
-                </div>
-                <div className="grid grid-cols-7 border-b border-slate-100">
-                  {['일','월','화','수','목','금','토'].map((d, i) => (
-                    <div key={d} className={`text-center py-2 text-xs font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'}`}>{d}</div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7">
-                  {Array.from({ length: firstDay }).map((_, i) => (
-                    <div key={'p' + i} className="border-r border-b border-slate-50 min-h-24 bg-slate-50/50" />
-                  ))}
-                  {Array.from({ length: daysInMonth }).map((_, i) => {
-                    const day = i + 1;
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const events = getApprovedForDate(dateStr);
-                    const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
-                    const dow = (firstDay + i) % 7;
-                    return (
-                      <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
-                        <div className={`text-xs font-semibold mb-1 ${isToday ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{day}</div>
-                        <div className="space-y-1">
-                          {events.slice(0, 3).map(ev => (
-                            <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200" title={ev.brand}>{ev.brand}</div>
-                          ))}
-                          {events.length > 3 && <div className="text-[10px] text-slate-400">+{events.length - 3}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              (() => {
-                const weekStart = new Date(currentMonth);
-                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                weekStart.setHours(0,0,0,0);
-                const weekDays = Array.from({ length: 7 }).map((_, i) => {
-                  const d = new Date(weekStart); d.setDate(d.getDate() + i); return d;
-                });
-                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                return (
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                      <button onClick={() => { const d = new Date(currentMonth); d.setDate(d.getDate() - 7); setCurrentMonth(d); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">‹</button>
-                      <h2 className="text-lg font-bold text-slate-800">{weekDays[0].getMonth() + 1}월 {weekDays[0].getDate()}일 ~ {weekDays[6].getMonth() + 1}월 {weekDays[6].getDate()}일</h2>
-                      <button onClick={() => { const d = new Date(currentMonth); d.setDate(d.getDate() + 7); setCurrentMonth(d); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">›</button>
-                    </div>
-                    <div className="grid grid-cols-7 border-b border-slate-100">
-                      {['일','월','화','수','목','금','토'].map((d, i) => (
-                        <div key={d} className={`text-center py-2 text-xs font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'}`}>{d}</div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-7">
-                      {weekDays.map((d, i) => {
-                        const dateStr = fmt(d);
-                        const events = getApprovedForDate(dateStr);
-                        const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
-                        return (
-                          <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
-                            <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
-                            <div className="space-y-1.5">
-                              {events.map(ev => (
-                                <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-200" title={ev.brand}>
-                                  <div className="font-semibold truncate">{ev.brand}</div>
-                                  <div className="text-[10px] text-blue-500 truncate">{ev.channels || ''}</div>
-                                </div>
-                              ))}
-                              {events.length === 0 && <div className="text-[10px] text-slate-300">일정 없음</div>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+          ) : (
+            (() => {
+              const weekStart = new Date(currentMonth);
+              weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+              weekStart.setHours(0,0,0,0);
+              const weekDays = Array.from({ length: 7 }).map((_, i) => {
+                const d = new Date(weekStart); d.setDate(d.getDate() + i); return d;
+              });
+              const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              return (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                    <button onClick={() => { const d = new Date(currentMonth); d.setDate(d.getDate() - 7); setCurrentMonth(d); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">‹</button>
+                    <h2 className="text-lg font-bold text-slate-800">{weekDays[0].getMonth() + 1}월 {weekDays[0].getDate()}일 ~ {weekDays[6].getMonth() + 1}월 {weekDays[6].getDate()}일</h2>
+                    <button onClick={() => { const d = new Date(currentMonth); d.setDate(d.getDate() + 7); setCurrentMonth(d); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">›</button>
                   </div>
-                );
-              })()
-            )}
-          </div>
-        )}
+                  <div className="grid grid-cols-7 border-b border-slate-100">
+                    {['일','월','화','수','목','금','토'].map((d, i) => (
+                      <div key={d} className={`text-center py-2 text-xs font-semibold ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'}`}>{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7">
+                    {weekDays.map((d, i) => {
+                      const dateStr = fmt(d);
+                      const events = getApprovedForDate(dateStr);
+                      const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
+                      return (
+                        <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
+                          <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
+                          <div className="space-y-1.5">
+                            {events.map(ev => (
+                              <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-200" title={ev.brand}>
+                                <div className="font-semibold truncate">{ev.brand}</div>
+                                <div className="text-[10px] text-blue-500 truncate">{ev.channels || ''}</div>
+                              </div>
+                            ))}
+                            {events.length === 0 && <div className="text-[10px] text-slate-300">일정 없음</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()
+          )}
+        </div>
+      )}
       </main>
 
-        {showAddPanel && (
-          <>
-            <div className="fixed inset-0 bg-black/30 z-40" onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }) }} />
-            <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b">
-                <h2 className="text-lg font-bold text-slate-800">새 일정 추가</h2>
-                <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }) }} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">×</button>
-              </div>
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">제목 <span className="text-red-500">*</span></label>
-                  <input value={addPanelForm.product_name} onChange={e => setAddPanelForm(f => ({ ...f, product_name: e.target.value }))} placeholder="제목을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">브랜드명</label>
-                  <input value={addPanelForm.brand_name} onChange={e => setAddPanelForm(f => ({ ...f, brand_name: e.target.value }))} placeholder="브랜드명을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">채널</label>
-                  <select value={addPanelForm.channel} onChange={e => setAddPanelForm(f => ({ ...f, channel: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">채널 선택</option>
-                    <option value="셀럽온">셀럽온</option>
-                    <option value="찐예쁨">찐예쁨</option>
-                    <option value="미모지상주의">미모지상주의</option>
-                    <option value="쇼잉">쇼잉</option>
-                    <option value="쇼숏">쇼숏</option>
-                    <option value="숏됐다">숏됐다</option>
-                    <option value="밈튜브">밈튜브</option>
-                    <option value="숏스커버리">숏스커버리</option>
-                    <option value="유니랜드">유니랜드</option>
-                    <option value="신기+탬">신기+탬</option>
-                    <option value="숏믈리에">숏믈리에</option>
-                    <option value="디어랩">디어랩</option>
-                    <option value="숏픽">숏픽</option>
-                    <option value="두근두근">두근두근</option>
-                    <option value="전국댓글자랑">전국댓글자랑</option>
-                    <option value="숏플레시">숏플레시</option>
-                    <option value="출석체크">출석체크</option>
-                    <option value="ワクワク">ワクワク</option>
-                    <option value="スポログ">スポログ</option>
-                    <option value="笑慇の一秒">笑慇の一秒</option>
-                    <option value="おもしろ塾">おもしろ塾</option>
-                    <option value="一瞬劇場">一瞬劇場</option>
-                    <option value="絆タイム">絆タイム</option>
-                    <option value="チーズケーキ">チーズケーキ</option>
-                    <option value="オイシイワールド">オイシイワールド</option>
-                    <option value="モグモグ">モグモグ</option>
-                    <option value="トレ韓">トレ韓</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">담당자</label>
-                  <input value={addPanelForm.manager_name} onChange={e => setAddPanelForm(f => ({ ...f, manager_name: e.target.value }))} placeholder="담당자 이름" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">날짜/시간 <span className="text-red-500">*</span></label>
-                  <input type="datetime-local" value={addPanelForm.deadline} onChange={e => setAddPanelForm(f => ({ ...f, deadline: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">상태</label>
-                  <select value={addPanelForm.status} onChange={e => setAddPanelForm(f => ({ ...f, status: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="진행중">진행중</option>
-                    <option value="완료">완료</option>
-                    <option value="대기">대기</option>
-                    <option value="보류">보류</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">유튜브 URL</label>
-                  <input value={addPanelForm.youtube_url} onChange={e => setAddPanelForm(f => ({ ...f, youtube_url: e.target.value }))} placeholder="https://youtube.com/..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">이메일</label>
-                  <input value={addPanelForm.email} onChange={e => setAddPanelForm(f => ({ ...f, email: e.target.value }))} placeholder="이메일 주소" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">연락처</label>
-                  <input value={addPanelForm.phone} onChange={e => setAddPanelForm(f => ({ ...f, phone: e.target.value }))} placeholder="010-0000-0000" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">사업자번호</label>
-                  <input value={addPanelForm.business_number} onChange={e => setAddPanelForm(f => ({ ...f, business_number: e.target.value }))} placeholder="000-00-00000" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">제품 링크</label>
-                  <input value={addPanelForm.product_link} onChange={e => setAddPanelForm(f => ({ ...f, product_link: e.target.value }))} placeholder="https://..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">활용 소재</label>
-                  <input value={addPanelForm.material} onChange={e => setAddPanelForm(f => ({ ...f, material: e.target.value }))} placeholder="활용 소재 입력" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">2차 활용</label>
-                  <select value={addPanelForm.secondary_use} onChange={e => setAddPanelForm(f => ({ ...f, secondary_use: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">선택</option>
-                    <option value="동의">동의</option>
-                    <option value="동의 안 받음">동의 안 받음</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">작업 타입</label>
-                  <select value={addPanelForm.work_type} onChange={e => setAddPanelForm(f => ({ ...f, work_type: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="콘티">콘티</option>
-                    <option value="영상">영상</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">작업 상태</label>
-                  <select value={addPanelForm.work_status} onChange={e => setAddPanelForm(f => ({ ...f, work_status: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">선택</option>
-                    <option value="시작 전">시작 전</option>
-                    <option value="진행 중">진행 중</option>
-                    <option value="완료">완료</option>
-                  </select>
-                </div>
-                {addPanelError && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-600">{addPanelError}</div>}
-              </div>
-              <div className="px-6 py-4 border-t flex gap-3">
-                <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }) }} className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">취소</button>
-                <button disabled={addPanelLoading} onClick={async () => { if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; } if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; } setAddPanelLoading(true); setAddPanelError(''); const { error } = await supabase.from('schedules').insert([{ product_name: addPanelForm.product_name, brand_name: addPanelForm.brand_name || null, channel: addPanelForm.channel || null, manager_name: addPanelForm.manager_name || null, deadline: addPanelForm.deadline, status: addPanelForm.status, youtube_url: addPanelForm.youtube_url || null, email: addPanelForm.email || null, phone: addPanelForm.phone || null, business_number: addPanelForm.business_number || null, product_link: addPanelForm.product_link || null, material: addPanelForm.material || null, secondary_use: addPanelForm.secondary_use || null, work_type: addPanelForm.work_type || null, work_status: addPanelForm.work_status || null }]); setAddPanelLoading(false); if (error) { setAddPanelError('저장 실패: ' + error.message); } else { fetchManualSchedules(); setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }); } }} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
-              </div>
+      {showAddPanel && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }); }} />
+          <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-bold text-slate-800">새 일정 추가</h2>
+              <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }); }} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">×</button>
             </div>
-          </>
-        )}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">제목 <span className="text-red-500">*</span></label>
+                <input value={addPanelForm.product_name} onChange={e => setAddPanelForm(f => ({ ...f, product_name: e.target.value }))} placeholder="제목을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">브랜드명</label>
+                <input value={addPanelForm.brand_name} onChange={e => setAddPanelForm(f => ({ ...f, brand_name: e.target.value }))} placeholder="브랜드명을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">채널</label>
+                <select value={addPanelForm.channel} onChange={e => setAddPanelForm(f => ({ ...f, channel: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="">채널 선택</option>
+                  <option value="셀럽온">셀럽온</option>
+                  <option value="찐예쁨">찐예쁨</option>
+                  <option value="미모지상주의">미모지상주의</option>
+                  <option value="쇼잉">쇼잉</option>
+                  <option value="쇼숏">쇼숏</option>
+                  <option value="숏됐다">숏됐다</option>
+                  <option value="밈튜브">밈튜브</option>
+                  <option value="숏스커버리">숏스커버리</option>
+                  <option value="유니랜드">유니랜드</option>
+                  <option value="신기+탬">신기+탬</option>
+                  <option value="숏믈리에">숏믈리에</option>
+                  <option value="디어랩">디어랩</option>
+                  <option value="숏픽">숏픽</option>
+                  <option value="두근두근">두근두근</option>
+                  <option value="전국댓글자랑">전국댓글자랑</option>
+                  <option value="숏플레시">숏플레시</option>
+                  <option value="출석체크">출석체크</option>
+                  <option value="ワクワク">ワクワク</option>
+                  <option value="スポログ">スポログ</option>
+                  <option value="笑慇の一秒">笑慇の一秒</option>
+                  <option value="おもしろ塾">おもしろ塾</option>
+                  <option value="一瞬劇場">一瞬劇場</option>
+                  <option value="絆タイム">絆タイム</option>
+                  <option value="チーズケーキ">チーズケーキ</option>
+                  <option value="オイシイワールド">オイシイワールド</option>
+                  <option value="モグモグ">モグモグ</option>
+                  <option value="トレ韓">トレ韓</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">담당자</label>
+                <input value={addPanelForm.manager_name} onChange={e => setAddPanelForm(f => ({ ...f, manager_name: e.target.value }))} placeholder="담당자 이름" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">날짜/시간 <span className="text-red-500">*</span></label>
+                <input type="datetime-local" value={addPanelForm.deadline} onChange={e => setAddPanelForm(f => ({ ...f, deadline: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">상태</label>
+                <select value={addPanelForm.status} onChange={e => setAddPanelForm(f => ({ ...f, status: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="진행중">진행중</option>
+                  <option value="완료">완료</option>
+                  <option value="대기">대기</option>
+                  <option value="보류">보류</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">유튜브 URL</label>
+                <input value={addPanelForm.youtube_url} onChange={e => setAddPanelForm(f => ({ ...f, youtube_url: e.target.value }))} placeholder="https://youtube.com/..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">이메일</label>
+                <input value={addPanelForm.email} onChange={e => setAddPanelForm(f => ({ ...f, email: e.target.value }))} placeholder="이메일 주소" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">연락처</label>
+                <input value={addPanelForm.phone} onChange={e => setAddPanelForm(f => ({ ...f, phone: e.target.value }))} placeholder="010-0000-0000" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">사업자번호</label>
+                <input value={addPanelForm.business_number} onChange={e => setAddPanelForm(f => ({ ...f, business_number: e.target.value }))} placeholder="000-00-00000" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">제품 링크</label>
+                <input value={addPanelForm.product_link} onChange={e => setAddPanelForm(f => ({ ...f, product_link: e.target.value }))} placeholder="https://..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">활용 소재</label>
+                <input value={addPanelForm.material} onChange={e => setAddPanelForm(f => ({ ...f, material: e.target.value }))} placeholder="활용 소재 입력" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">2차 활용</label>
+                <select value={addPanelForm.secondary_use} onChange={e => setAddPanelForm(f => ({ ...f, secondary_use: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="">선택</option>
+                  <option value="동의">동의</option>
+                  <option value="동의 안 받음">동의 안 받음</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">작업 타입</label>
+                <select value={addPanelForm.work_type} onChange={e => setAddPanelForm(f => ({ ...f, work_type: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="콘티">콘티</option>
+                  <option value="영상">영상</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">작업 상태</label>
+                <select value={addPanelForm.work_status} onChange={e => setAddPanelForm(f => ({ ...f, work_status: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="">선택</option>
+                  <option value="시작 전">시작 전</option>
+                  <option value="진행 중">진행 중</option>
+                  <option value="완료">완료</option>
+                </select>
+              </div>
+              {addPanelError && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-600">{addPanelError}</div>}
+            </div>
+            <div className="px-6 py-4 border-t flex gap-3">
+              <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' }); }} className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">취소</button>
+              <button disabled={addPanelLoading} onClick={async () => {
+                if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; }
+                if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; }
+                setAddPanelLoading(true); setAddPanelError('');
+                const { error } = await supabase.from('schedules').insert([{
+                  product_name: addPanelForm.product_name,
+                  brand_name: addPanelForm.brand_name || null,
+                  channel: addPanelForm.channel || null,
+                  manager_name: addPanelForm.manager_name || null,
+                  deadline: addPanelForm.deadline,
+                  status: addPanelForm.status,
+                  youtube_url: addPanelForm.youtube_url || null,
+                  email: addPanelForm.email || null,
+                  phone: addPanelForm.phone || null,
+                  business_number: addPanelForm.business_number || null,
+                  product_link: addPanelForm.product_link || null,
+                  material: addPanelForm.material || null,
+                  secondary_use: addPanelForm.secondary_use || null,
+                  work_type: addPanelForm.work_type || null,
+                  work_status: addPanelForm.work_status || null
+                }]);
+                setAddPanelLoading(false);
+                if (error) { setAddPanelError('저장 실패: ' + error.message); }
+                else {
+                  fetchManualSchedules();
+                  setShowAddPanel(false); setAddPanelError('');
+                  setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '' });
+                }
+              }} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
