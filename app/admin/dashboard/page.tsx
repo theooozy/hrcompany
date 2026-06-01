@@ -558,16 +558,24 @@ fetchManualSchedules();
     );
   };
 
-  const MemoSection = ({ inq }: { inq: Inquiry }) => {
+  const MemoSection = ({ inq, memoValues, setMemoValues, savingMemo, setSavingMemo, handleSaveMemoFn, handleScheduleMemoFn }: {
+  inq: Inquiry;
+  memoValues: Record<string, string>;
+  setMemoValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  savingMemo: string | null;
+  setSavingMemo: React.Dispatch<React.SetStateAction<string | null>>;
+  handleSaveMemoFn: (id: string, memo: string) => Promise<void>;
+  handleScheduleMemoFn: (id: string, memo: string) => Promise<void>;
+}) => {
   const initialMemo = memoValues[inq.id] !== undefined ? memoValues[inq.id] : (inq.memo || '');
   const [localMemo, setLocalMemo] = useState<string>(initialMemo);
 
   const handleMemoSave = () => {
     setMemoValues(prev => ({ ...prev, [inq.id]: localMemo }));
     if (inq._source === 'schedule') {
-      handleScheduleMemoWithValue(inq.id, localMemo);
+      handleScheduleMemoFn(inq.id, localMemo);
     } else {
-      handleSaveMemoWithValue(inq.id, localMemo);
+      handleSaveMemoFn(inq.id, localMemo);
     }
   };
 
@@ -1021,7 +1029,7 @@ setSelectedRowMeta(null);
                   </div>
                 )}
                 <div className="p-4 border-b border-slate-100">
-                  <MemoSection inq={selectedDetail} />
+                  <MemoSection inq={selectedDetail} memoValues={memoValues} setMemoValues={setMemoValues} savingMemo={savingMemo} setSavingMemo={setSavingMemo} handleSaveMemoFn={handleSaveMemoWithValue} handleScheduleMemoFn={handleScheduleMemoWithValue} />
                 </div>
               </div>
             )}
