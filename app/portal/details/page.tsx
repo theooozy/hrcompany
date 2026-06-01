@@ -122,8 +122,8 @@ export default function PortalDetailsPage() {
                                   <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
                                               <span className="text-3xl">✓</span>
                                   </div>
-                                  <h1 className="text-2xl font-bold text-slate-800 mb-2">제출 완료</h1>h1>
-                                  <p className="text-slate-500 mb-6">담당자가 검토 후 연락드리겠습니다.</p>p>
+                                  <h1 className="text-2xl font-bold text-slate-800 mb-2">제출 완료</h1>
+                                  <p className="text-slate-500 mb-6">담당자가 검토 후 연락드리겠습니다.</p>
                                   <a href="/portal" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-bold">포털로 돌아가기</a>
                         </div>
                 </div>
@@ -146,8 +146,8 @@ export default function PortalDetailsPage() {
           
                 <section className="max-w-3xl mx-auto px-6 py-12">
                         <div className="text-center mb-8">
-                                  <h1 className="text-3xl font-bold text-slate-800 mb-2">세부 정보 입력</h1>h1>
-                                  <p className="text-slate-500">진행을 위해 아래 정보를 입력해주세요.</p>p>
+                                  <h1 className="text-3xl font-bold text-slate-800 mb-2">세부 정보 입력</h1>
+                                  <p className="text-slate-500">진행을 위해 아래 정보를 입력해주세요.</p>
                         </div>
                 
                         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md p-8 space-y-6">
