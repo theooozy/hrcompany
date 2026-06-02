@@ -483,7 +483,7 @@ export default function DashboardPage() {
     ...inquiries.filter(i => i.status === 'approved' && i.scheduled_date === dateStr).map(i => ({ ...i, _source: 'inquiry' })),
     ...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, brand_name: s.brand_name, brand: s.brand_name || s.product_name, _source: 'schedule' }))
   ];
-  const formatDate = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
+  const formatDate = (dateStr: string) => { if (!dateStr) return ''; const d = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T00:00:00'); if (isNaN(d.getTime())) return dateStr; return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
   const formatDateTime = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
 
   const statusBadge = (status: string) => {
