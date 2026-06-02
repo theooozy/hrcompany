@@ -99,7 +99,6 @@ product_link: form.product_link_none ? '없음' : (form.product_link || null),
 secondary_use: secondaryUse || null,
 video_concept: form.video_concept || null,
 extra: form.extra || null,
-preferred_channels: preferredChannels.length > 0 ? preferredChannels.join(', ') : null,
 };
 
 try {
