@@ -646,12 +646,14 @@ onDelete: () => void;
 const isSchedule = detail._source === 'schedule';
 const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
 const [statusOpen, setStatusOpen] = useState(false);
+const [channelOpen, setChannelOpen] = useState(false);
 const statusRef = useRef<HTMLDivElement>(null);
+const channelRef = useRef<HTMLDivElement>(null);
 
 const [editBrand, setEditBrand] = useState(detail.brand || '');
 const [editChannels, setEditChannels] = useState(detail.channels || '');
-const [editYoutube, setEditYoutube] = useState(detail.youtube_url || '');
-const deadlineRaw = detail.scheduled_date || detail.deadline || '';
+const [editUpload, setEditUpload] = useState(detail.youtube_url || '');
+const deadlineRaw = isSchedule ? (detail.deadline || '') : (detail.scheduled_date || detail.deadline || '');
 const toDatetimeLocal = (v: string) => {
 if (!v) return '';
 if (v.includes('T')) return v.substring(0, 16);
@@ -664,17 +666,31 @@ const [editProductLink, setEditProductLink] = useState(detail.product_link || ''
 const [editMemo, setEditMemo] = useState(detail.memo || '');
 const memoRef = useRef<HTMLTextAreaElement>(null);
 
-useEffect(() => { setStatusOpen(false); }, [detail.id]);
+const ALL_CHANNELS = [
+'셀럽온', '찐예쁨', '미모지상주의', '쇼잉', '쇼숏', '숏됐다',
+'밈튜브', '숏스커버리', '유니랜드', '신기+탬', '숏믈리에',
+'디어랩', '숏픽', '두근두근', '전국댓글자랑', '숏플레시', '출석체크',
+'ワクワク', 'スポログ', '笑慇の一秒', 'おもしろ塾', '一瞬劇場',
+'絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
+];
+const channelOptions = Object.keys(channelSettings).length > 0
+? Object.keys(channelSettings).sort((a, b) => a.localeCompare(b, 'ko'))
+: ALL_CHANNELS;
+
+useEffect(() => { setStatusOpen(false); setChannelOpen(false); }, [detail.id]);
 
 useEffect(() => {
 const handleClickOutside = (e: MouseEvent) => {
 if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
 setStatusOpen(false);
 }
+if (channelRef.current && !channelRef.current.contains(e.target as Node)) {
+setChannelOpen(false);
+}
 };
-if (statusOpen) document.addEventListener('mousedown', handleClickOutside);
+document.addEventListener('mousedown', handleClickOutside);
 return () => document.removeEventListener('mousedown', handleClickOutside);
-}, [statusOpen]);
+}, []);
 
 const autoResize = (el: HTMLTextAreaElement) => {
 el.style.height = 'auto';
@@ -794,15 +810,40 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 />
 } />
 
-{/* 채널 */}
+{/* 채널 - 드롭다운 */}
 <InfoLine label="채널" value={
-<input
-value={editChannels}
-onChange={e => setEditChannels(e.target.value)}
-onBlur={() => autoSave('channels', editChannels || null)}
-placeholder="없음"
-className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
-/>
+<div className="relative" ref={channelRef}>
+<button
+type="button"
+onClick={(e) => { e.stopPropagation(); setChannelOpen(o => !o); }}
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all text-left flex items-center justify-between"
+>
+<span className={editChannels ? 'text-slate-800' : 'text-slate-400'}>{editChannels || '없음'}</span>
+<span className="text-slate-400 text-xs ml-1">▾</span>
+</button>
+{channelOpen && (
+<div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden w-full" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+<button
+type="button"
+onClick={(e) => { e.stopPropagation(); setEditChannels(''); autoSave('channels', null); setChannelOpen(false); }}
+className="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 border-b border-slate-100"
+>없음 (초기화)</button>
+{channelOptions.map(ch => (
+<button
+key={ch}
+type="button"
+onClick={(e) => {
+e.stopPropagation();
+setEditChannels(ch);
+autoSave('channels', ch);
+setChannelOpen(false);
+}}
+className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-all ${editChannels === ch ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700'}`}
+>{ch}</button>
+))}
+</div>
+)}
+</div>
 } />
 
 {/* 데드라인 */}
@@ -844,22 +885,23 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 </div>
 } />
 
-{/* 유튜브 */}
-<InfoLine label="유튜브" value={
+{detail.upload_date && <InfoLine label="업로드 일시" value={<span className="text-sm">{detail.upload_date}</span>} />}
+{detail.secondary_use ? <InfoLine label="2차 활용" value={<span className="text-sm">{detail.secondary_use}</span>} /> : null}
+
+{/* 업로드 링크 (유튜브) - 2차 활용 아래 */}
+<InfoLine label="업로드" value={
 <div>
 <input
-value={editYoutube}
-onChange={e => setEditYoutube(e.target.value)}
-onBlur={() => autoSave('youtube_url', editYoutube.trim() || null)}
+value={editUpload}
+onChange={e => setEditUpload(e.target.value)}
+onBlur={() => autoSave('youtube_url', editUpload.trim() || null)}
 placeholder="없음"
 className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
 />
-{editYoutube && <a href={editYoutube} target="_blank" rel="noreferrer" className="text-xs text-red-500 hover:underline mt-1 block truncate">{editYoutube}</a>}
+{editUpload && <a href={editUpload} target="_blank" rel="noreferrer" className="text-xs text-red-500 hover:underline mt-1 block truncate">{editUpload}</a>}
 </div>
 } />
 
-{detail.upload_date && <InfoLine label="업로드 일시" value={<span className="text-sm">{detail.upload_date}</span>} />}
-{detail.secondary_use && <InfoLine label="2차 활용" value={<span className="text-sm">{detail.secondary_use}</span>} />}
 {(detail as any).preferred_channels && <InfoLine label="선호 채널" value={<span className="text-sm">{(detail as any).preferred_channels}</span>} />}
 {detail.video_concept && <InfoLine label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
 {detail.extra && <InfoLine label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
@@ -907,6 +949,7 @@ style={{ minHeight: '80px', height: 'auto' }}
 </div>
 );
 };
+
 
 
     const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
