@@ -92,6 +92,8 @@ export default function DashboardPage() {
   const [savingMemo, setSavingMemo] = useState<string | null>(null);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [showAddPanel, setShowAddPanel] = useState(false);
+  const [calendarDetail, setCalendarDetail] = useState<Inquiry | null>(null);
+  const [calendarDetailRowMeta, setCalendarDetailRowMeta] = useState<{ channel: string; conceptName: string } | null>(null);
   const [addPanelLoading, setAddPanelLoading] = useState(false);
   const [addPanelError, setAddPanelError] = useState('');
   const [manualSchedules, setManualSchedules] = useState<any[]>([]);
@@ -120,7 +122,7 @@ export default function DashboardPage() {
     fetchManualSchedules();
     return () => { supabase.removeChannel(ch); };
   }, [activeMenu]);
-  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); if (activeMenu === 'staff') fetchStaff(); if (activeMenu === 'channels') fetchChannelSettings(); }, [activeMenu]);
+  useEffect(() => { if (activeMenu === 'trash') fetchTrash(); if (activeMenu === 'staff') fetchStaff(); if (activeMenu === 'channels') { fetchChannelSettings().then(m => { if (m) initMissingChannels(m); }); } }, [activeMenu]);
   useEffect(() => {
     const onClick = () => { setOpenWorkStatusFor(null); setOpenWorkTypeFor(null); };
     window.addEventListener('click', onClick);
@@ -404,6 +406,26 @@ export default function DashboardPage() {
     const map: Record<string, { person_name: string; tts_info: string }> = {};
     (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '' }; });
     setChannelSettings(map);
+    return map;
+  };
+  const ALL_DEFAULT_CHANNELS = [
+    '셀럽온', '찐예쁨', '미모지상주의', '쇼잉', '쇼숏', '숏됐다',
+    '밈튜브', '숏스커버리', '유니랜드', '신기+탬', '숏믈리에',
+    '디어랩', '숏픽', '두근두근', '전국댓글자랑', '숏플레시', '출석체크',
+    'ワクワク', 'スポログ', '笑慇の一秒', 'おもしろ塾', '一瞬劇場',
+    '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
+  ];
+  const initMissingChannels = async (existingMap: Record<string, { person_name: string; tts_info: string }>) => {
+    const missing = ALL_DEFAULT_CHANNELS.filter(ch => !existingMap[ch]);
+    if (missing.length === 0) return;
+    await supabase.from('channel_settings').upsert(
+      missing.map(ch => ({ channel: ch, person_name: '', tts_info: '' })),
+      { onConflict: 'channel', ignoreDuplicates: true }
+    );
+    const { data } = await supabase.from('channel_settings').select('channel, person_name, tts_info');
+    const map2: Record<string, { person_name: string; tts_info: string }> = {};
+    (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map2[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '' }; });
+    setChannelSettings(map2);
   };
   const handleAddChannel = async () => {
     const name = newChannelName.trim();
@@ -915,12 +937,33 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 {detail.video_concept && <InfoLine label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
 {detail.extra && <InfoLine label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
 
-{/* 수정 불가 정보 */}
+{/* 문의자 정보 */}
 <div className="pt-4">
 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-문의자 정보 (수정 불가)
+문의자 정보 {(currentRole === 'master' || currentRole === 'admin') ? '(관리자 수정 가능)' : '(수정 불가)'}
 </p>
 <div className="bg-slate-50 rounded-xl overflow-hidden">
+{(currentRole === 'master' || currentRole === 'admin') ? (
+<>
+{[
+{ label: '담당자', field: 'name', val: detail.name },
+{ label: '이메일', field: 'email', val: detail.email },
+{ label: '연락처', field: 'phone', val: detail.phone },
+{ label: '사업자번호', field: 'business_number', val: detail.business_number },
+].map(({ label, field, val }) => (
+<div key={label} className="flex items-center gap-3 px-4 py-2 border-b border-slate-100 last:border-0">
+<span className="text-xs text-slate-400 w-24 shrink-0 font-medium">{label}</span>
+<input
+defaultValue={val || ''}
+onBlur={(e) => autoSave(field, e.target.value.trim() || null)}
+placeholder="없음"
+className="flex-1 text-sm text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+/>
+</div>
+))}
+</>
+) : (
+<>
 {[
 { label: '담당자', val: detail.name },
 { label: '이메일', val: detail.email },
@@ -932,6 +975,8 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 <span className="text-sm text-slate-600">{val || '없음'}</span>
 </div>
 ))}
+</>
+)}
 </div>
 </div>
 
@@ -1553,12 +1598,19 @@ style={{ minHeight: '80px', height: 'auto' }}
                   const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
                   const dow = (firstDay + i) % 7;
                   return (
-                    <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
+                    <div key={day} className="border-r border-b border-slate-50 min-h-24 p-2 hover:bg-slate-50/30 transition-colors">
                       <div className={`text-xs font-semibold mb-1 ${isToday ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{day}</div>
                       <div className="space-y-1">
-                        {events.slice(0, 3).map(ev => (
-                          <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded truncate cursor-pointer hover:bg-blue-200" title={ev.brand}>{ev.brand}</div>
-                        ))}
+                        {events.slice(0, 3).map(ev => {
+                          const evWs2 = ev.work_status || '시작 전';
+                          const evWsSt2 = getWorkStatusStyle(evWs2);
+                          return (
+                          <div key={ev.id} onClick={(e) => { e.stopPropagation(); setCalendarDetail(ev as any); setCalendarDetailRowMeta(null); }} className="text-[10px] px-1.5 py-0.5 bg-white border border-blue-100 rounded truncate cursor-pointer hover:bg-blue-50 flex items-center gap-1" title={(ev.brand||'') + ' - ' + evWs2}>
+                            <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + evWsSt2.dot}></span>
+                            <span className="truncate font-medium text-slate-700">{ev.brand || '-'}</span>
+                          </div>
+                          );
+                        })}
                         {events.length > 3 && <div className="text-[10px] text-slate-400">+{events.length - 3}</div>}
                       </div>
                     </div>
@@ -1593,15 +1645,36 @@ style={{ minHeight: '80px', height: 'auto' }}
                       const events = getApprovedForDate(dateStr);
                       const _t = new Date(); const _tStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`; const isToday = _tStr === dateStr;
                       return (
-                        <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3 cursor-pointer hover:bg-blue-50/30 transition-colors" onClick={() => { setSelectedCalendarDate(dateStr); setActiveMenu('table'); }}>
+                        <div key={dateStr} className="border-r border-slate-50 min-h-48 p-3 hover:bg-slate-50/30 transition-colors">
                           <div className={`text-sm font-bold mb-2 ${isToday ? 'inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white' : i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-700'}`}>{d.getDate()}</div>
                           <div className="space-y-1.5">
-                            {events.map(ev => (
-                              <div key={ev.id} onClick={(e) => { e.stopPropagation(); setSelectedCalendarDate(dateStr); setSelectedDetail(ev); setSelectedRowMeta(null); setActiveMenu('table'); }} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded cursor-pointer hover:bg-blue-200" title={ev.brand}>
-                                <div className="font-semibold truncate">{ev.brand}</div>
-                                <div className="text-[10px] text-blue-500 truncate">{ev.channels || ''}</div>
+                            {events.map(ev => {
+                              const evWt = ev.work_type || '콘티';
+                              const evSa = ((ev.storyboard_assignees) || {}) as Record<string,string>;
+                              const evVa = ((ev.video_assignees) || {}) as Record<string,string>;
+                              const evCh = (ev.channels || (ev as any).channel || '').split(',')[0].trim();
+                              const evAssignee = evWt === '영상' ? (evVa[evCh] || ev.name || '') : (evSa[evCh] || ev.name || '');
+                              const evWs = ev.work_status || '시작 전';
+                              const evWsSt = getWorkStatusStyle(evWs);
+                              const evDeadline = ev.deadline || ev.scheduled_date || '';
+                              const evTime = evDeadline && evDeadline.includes('T') ? evDeadline.substring(11, 16) : '';
+                              return (
+                              <div key={ev.id} onClick={(e) => { e.stopPropagation(); setCalendarDetail(ev as any); setCalendarDetailRowMeta(null); }} className="text-xs px-2 py-1.5 bg-white border border-blue-100 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all shadow-sm mb-1" title={(ev.brand||'') + ' - ' + evWs}>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-slate-800 truncate text-[11px]">{ev.brand || '-'}</span>
+                                  {evTime && <span className="text-[9px] text-slate-400 shrink-0 ml-1">{evTime}</span>}
+                                </div>
+                                {evCh && <div className="text-[10px] text-slate-500 truncate">{evCh}</div>}
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className={"inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-medium " + evWsSt.color}>
+                                    <span className={"w-1.5 h-1.5 rounded-full " + evWsSt.dot}></span>
+                                    {evWs}
+                                  </span>
+                                </div>
+                                {evAssignee && <div className="text-[10px] text-slate-400 truncate">{evAssignee}</div>}
                               </div>
-                            ))}
+                              );
+                            })}
                             {events.length === 0 && <div className="text-[10px] text-slate-300">일정 없음</div>}
                           </div>
                         </div>
@@ -1615,6 +1688,28 @@ style={{ minHeight: '80px', height: 'auto' }}
         </div>
       )}
       </main>
+
+      {calendarDetail && (
+        <>
+          <div className="fixed inset-0 z-20 bg-black/20" onClick={() => { setCalendarDetail(null); setCalendarDetailRowMeta(null); }} />
+          <DetailEditablePanel
+            detail={calendarDetail}
+            rowMeta={calendarDetailRowMeta}
+            onClose={() => { setCalendarDetail(null); setCalendarDetailRowMeta(null); }}
+            onDelete={() => {
+              if (calendarDetail) {
+                if (calendarDetail._source === 'schedule') {
+                  handleScheduleDelete(calendarDetail._scheduleId || calendarDetail.id);
+                } else {
+                  handleDelete(calendarDetail.id, '캘린더');
+                }
+                setCalendarDetail(null);
+                setCalendarDetailRowMeta(null);
+              }
+            }}
+          />
+        </>
+      )}
 
       {showAddPanel && (
         <>
