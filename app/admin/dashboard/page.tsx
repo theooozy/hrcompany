@@ -638,262 +638,276 @@ export default function DashboardPage() {
 
   // Editable detail panel component
   const DetailEditablePanel = ({ detail, rowMeta, onClose, onDelete }: {
-    detail: Inquiry;
-    rowMeta: { channel: string; conceptName: string } | null;
-    onClose: () => void;
-    onDelete: () => void;
-  }) => {
-    const isSchedule = detail._source === 'schedule';
-    const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
-    const [statusOpen, setStatusOpen] = useState(false);
-    const statusRef = useRef<HTMLDivElement>(null);
+detail: Inquiry;
+rowMeta: { channel: string; conceptName: string } | null;
+onClose: () => void;
+onDelete: () => void;
+}) => {
+const isSchedule = detail._source === 'schedule';
+const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
+const [statusOpen, setStatusOpen] = useState(false);
+const statusRef = useRef<HTMLDivElement>(null);
 
-    const [editBrand, setEditBrand] = useState(detail.brand || '');
-    const [editChannels, setEditChannels] = useState(detail.channels || '');
-    const [editYoutube, setEditYoutube] = useState(detail.youtube_url || '');
-    const deadlineRaw = detail.scheduled_date || detail.deadline || '';
-    const toDatetimeLocal = (v: string) => {
-      if (!v) return '';
-      if (v.includes('T')) return v.substring(0, 16);
-      if (v.length === 10) return v + 'T00:00';
-      return v.substring(0, 16);
-    };
-    const [editDeadline, setEditDeadline] = useState(toDatetimeLocal(deadlineRaw));
-    const [editMemo, setEditMemo] = useState(detail.memo || '');
-    const memoRef = useRef<HTMLTextAreaElement>(null);
+const [editBrand, setEditBrand] = useState(detail.brand || '');
+const [editChannels, setEditChannels] = useState(detail.channels || '');
+const [editYoutube, setEditYoutube] = useState(detail.youtube_url || '');
+const deadlineRaw = detail.scheduled_date || detail.deadline || '';
+const toDatetimeLocal = (v: string) => {
+if (!v) return '';
+if (v.includes('T')) return v.substring(0, 16);
+if (v.length === 10) return v + 'T00:00';
+return v.substring(0, 16);
+};
+const [editDeadline, setEditDeadline] = useState(toDatetimeLocal(deadlineRaw));
+const [editMaterial, setEditMaterial] = useState(detail.material || '');
+const [editProductLink, setEditProductLink] = useState(detail.product_link || '');
+const [editMemo, setEditMemo] = useState(detail.memo || '');
+const memoRef = useRef<HTMLTextAreaElement>(null);
 
-    useEffect(() => { setStatusOpen(false); }, [detail.id]);
+useEffect(() => { setStatusOpen(false); }, [detail.id]);
 
-    useEffect(() => {
-      const handleClickOutside = (e: MouseEvent) => {
-        if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
-          setStatusOpen(false);
-        }
-      };
-      if (statusOpen) document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [statusOpen]);
+useEffect(() => {
+const handleClickOutside = (e: MouseEvent) => {
+if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+setStatusOpen(false);
+}
+};
+if (statusOpen) document.addEventListener('mousedown', handleClickOutside);
+return () => document.removeEventListener('mousedown', handleClickOutside);
+}, [statusOpen]);
 
-    const autoResize = (el: HTMLTextAreaElement) => {
-      el.style.height = 'auto';
-      el.style.height = el.scrollHeight + 'px';
-    };
+const autoResize = (el: HTMLTextAreaElement) => {
+el.style.height = 'auto';
+el.style.height = el.scrollHeight + 'px';
+};
 
-    useEffect(() => {
-      if (memoRef.current) autoResize(memoRef.current);
-    }, [editMemo]);
+useEffect(() => {
+if (memoRef.current) autoResize(memoRef.current);
+}, [editMemo]);
 
-    const autoSave = async (field: string, value: string | null) => {
-      const table = isSchedule ? 'schedules' : 'inquiries';
-      const { error } = await supabase.from(table).update({ [field]: value }).eq('id', entityId);
-      if (!error) {
-        if (isSchedule) {
-          setManualSchedules(prev => prev.map((s: any) => s.id === entityId ? { ...s, [field]: value } : s));
-        } else {
-          setInquiries(prev => prev.map(i => i.id === entityId ? { ...i, [field]: value } : i));
-        }
-        setSelectedDetail(prev => prev ? { ...prev, [field]: value } : null);
-      }
-    };
+const autoSave = async (field: string, value: string | null) => {
+const table = isSchedule ? 'schedules' : 'inquiries';
+const { error } = await supabase.from(table).update({ [field]: value }).eq('id', entityId);
+if (!error) {
+if (isSchedule) {
+setManualSchedules(prev => prev.map((s: any) => s.id === entityId ? { ...s, [field]: value } : s));
+} else {
+setInquiries(prev => prev.map(i => i.id === entityId ? { ...i, [field]: value } : i));
+}
+setSelectedDetail(prev => prev ? { ...prev, [field]: value } : null);
+}
+};
 
-    const ws = (rowMeta && detail.work_statuses && detail.work_statuses[rowMeta.channel]) || detail.work_status || '시작 전';
-    const wt = (rowMeta && detail.work_types && detail.work_types[rowMeta.channel]) || detail.work_type || '콘티';
-    const statusStyle = getWorkStatusStyle(ws);
-    const formatDeadlineDisplay = (v: string) => {
-      if (!v) return '없음';
-      const d = new Date(v.includes('T') ? v : v + 'T00:00');
-      return d.toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    };
+const ws = (rowMeta && detail.work_statuses && detail.work_statuses[rowMeta.channel]) || detail.work_status || '시작 전';
+const wt = (rowMeta && detail.work_types && detail.work_types[rowMeta.channel]) || detail.work_type || '콘티';
+const statusStyle = getWorkStatusStyle(ws);
 
-    const InfoLine = ({ icon, label, value }: { icon: string; label: string; value: React.ReactNode }) => (
-      <div className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0">
-        <span className="text-slate-400 text-sm mt-0.5 w-5 text-center shrink-0">{icon}</span>
-        <span className="text-slate-400 text-xs w-20 shrink-0 pt-0.5 font-medium">{label}</span>
-        <div className="flex-1 text-sm text-slate-800">{value}</div>
-      </div>
-    );
+const InfoLine = ({ label, value }: { label: string; value: React.ReactNode }) => (
+<div className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0">
+<span className="text-slate-400 text-xs w-24 shrink-0 pt-0.5 font-medium">{label}</span>
+<div className="flex-1 text-sm text-slate-800">{value}</div>
+</div>
+);
 
-    return (
-      <div
-        className="fixed top-0 bottom-0 right-0 w-[480px] bg-white border-l border-slate-200 shadow-2xl overflow-y-auto z-30 flex flex-col"
-        ref={detailPanelRef}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <div className="flex items-start justify-between mb-3">
-            <h2 className="text-xl font-bold text-slate-800 leading-tight">
-              {editBrand || detail.brand || '(브랜드 없음)'}
-              {rowMeta ? <span className="text-slate-400 font-normal"> / {rowMeta.conceptName}</span> : null}
-            </h2>
-            <div className="flex items-center gap-1 shrink-0 ml-2">
-              <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="삭제">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
-              </button>
-              <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" title="닫기">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
-          </div>
-          {/* Status + WorkType row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative" ref={statusRef}>
-              <button
-                onClick={(e) => { e.stopPropagation(); setStatusOpen(o => !o); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusStyle.color} hover:opacity-80 transition-all`}
-              >
-                <span className={`w-2 h-2 rounded-full ${statusStyle.dot}`}></span>
-                {ws}
-                <span className="opacity-60">▾</span>
-              </button>
-              {statusOpen && (
-                <div className="absolute left-0 top-9 z-50 bg-white rounded-xl shadow-xl border border-slate-100 p-2 w-44 space-y-0.5">
-                  {WORK_STATUSES.map(s => (
-                    <button
-                      key={s.label}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isSchedule) { handleScheduleWorkStatus(entityId, s.label); }
-                        else if (rowMeta) { handleRowWorkStatus(detail.id, rowMeta.channel, s.label); }
-                        else { handleWorkStatus(detail.id, s.label); }
-                        setStatusOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {WORK_TYPES.map(t => (
-              <button
-                key={t}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSchedule) { handleScheduleWorkType(entityId, t); }
-                  else if (rowMeta) { handleRowWorkType(detail.id, rowMeta.channel, t); }
-                  else { handleWorkType(detail.id, t); }
-                }}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${wt === t ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
+return (
+<div
+className="fixed top-0 bottom-0 right-0 w-[480px] bg-white border-l border-slate-200 shadow-2xl overflow-y-auto z-30 flex flex-col"
+ref={detailPanelRef}
+onClick={(e) => e.stopPropagation()}
+>
+{/* Header */}
+<div className="px-6 pt-6 pb-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+<div className="flex items-start justify-between mb-3">
+<h2 className="text-xl font-bold text-slate-800 leading-tight">
+{editBrand || detail.brand || '(브랜드 없음)'}
+{rowMeta ? <span className="text-slate-400 font-normal"> / {rowMeta.conceptName}</span> : null}
+</h2>
+<div className="flex items-center gap-1 shrink-0 ml-2">
+<button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="삭제">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
+</button>
+<button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" title="닫기">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+</button>
+</div>
+</div>
+{/* Status + WorkType row */}
+<div className="flex items-center gap-2 flex-wrap">
+<div className="relative" ref={statusRef}>
+<button
+onClick={(e) => { e.stopPropagation(); setStatusOpen(o => !o); }}
+className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusStyle.color} hover:opacity-80 transition-all`}
+>
+<span className={`w-2 h-2 rounded-full ${statusStyle.dot}`}></span>
+{ws}
+<span className="opacity-60">▾</span>
+</button>
+{statusOpen && (
+<div className="absolute left-0 top-9 z-50 bg-white rounded-xl shadow-xl border border-slate-100 p-2 w-44 space-y-0.5">
+{WORK_STATUSES.map(s => (
+<button
+key={s.label}
+onClick={(e) => {
+e.stopPropagation();
+if (isSchedule) { handleScheduleWorkStatus(entityId, s.label); }
+else if (rowMeta) { handleRowWorkStatus(detail.id, rowMeta.channel, s.label); }
+else { handleWorkStatus(detail.id, s.label); }
+setStatusOpen(false);
+}}
+className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}
+>
+<span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
+{s.label}
+</button>
+))}
+</div>
+)}
+</div>
+{WORK_TYPES.map(t => (
+<button
+key={t}
+onClick={(e) => {
+e.stopPropagation();
+if (isSchedule) { handleScheduleWorkType(entityId, t); }
+else if (rowMeta) { handleRowWorkType(detail.id, rowMeta.channel, t); }
+else { handleWorkType(detail.id, t); }
+}}
+className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${wt === t ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+>
+{t}
+</button>
+))}
+</div>
+</div>
 
-        {/* Body */}
-        <div className="flex-1 px-6 py-4 space-y-0">
+{/* Body */}
+<div className="flex-1 px-6 py-4 space-y-0">
 
-          {/* 브랜드 */}
-          <InfoLine icon="🏷️" label="브랜드" value={
-            <input
-              value={editBrand}
-              onChange={e => setEditBrand(e.target.value)}
-              onBlur={() => autoSave('brand', editBrand || null)}
-              placeholder="없음"
-              className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
-            />
-          } />
+{/* 브랜드 */}
+<InfoLine label="브랜드" value={
+<input
+value={editBrand}
+onChange={e => setEditBrand(e.target.value)}
+onBlur={() => autoSave('brand', editBrand || null)}
+placeholder="없음"
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+} />
 
-          {/* 데드라인 */}
-          <InfoLine icon="📅" label="데드라인" value={
-            <input
-              type="datetime-local"
-              value={editDeadline}
-              onChange={e => setEditDeadline(e.target.value)}
-              onBlur={() => {
-                const field = isSchedule ? 'deadline' : 'scheduled_date';
-                autoSave(field, editDeadline || null);
-              }}
-              className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
-            />
-          } />
+{/* 채널 */}
+<InfoLine label="채널" value={
+<input
+value={editChannels}
+onChange={e => setEditChannels(e.target.value)}
+onBlur={() => autoSave('channels', editChannels || null)}
+placeholder="없음"
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+} />
 
-          {/* 채널 */}
-          <InfoLine icon="📡" label="채널" value={
-            <input
-              value={editChannels}
-              onChange={e => setEditChannels(e.target.value)}
-              onBlur={() => autoSave('channels', editChannels || null)}
-              placeholder="없음"
-              className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
-            />
-          } />
+{/* 데드라인 */}
+<InfoLine label="데드라인" value={
+<input
+type="datetime-local"
+value={editDeadline}
+onChange={e => setEditDeadline(e.target.value)}
+onBlur={() => {
+const field = isSchedule ? 'deadline' : 'scheduled_date';
+autoSave(field, editDeadline || null);
+}}
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+} />
 
-          {/* 유튜브 */}
-          <InfoLine icon="▶️" label="유튜브" value={
-            <div>
-              <input
-                value={editYoutube}
-                onChange={e => setEditYoutube(e.target.value)}
-                onBlur={() => autoSave('youtube_url', editYoutube.trim() || null)}
-                placeholder="없음"
-                className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
-              />
-              {editYoutube && <a href={editYoutube} target="_blank" rel="noreferrer" className="text-xs text-red-500 hover:underline mt-1 block truncate">{editYoutube}</a>}
-            </div>
-          } />
+{/* 활용 소재 */}
+<InfoLine label="활용 소재" value={
+<input
+value={editMaterial}
+onChange={e => setEditMaterial(e.target.value)}
+onBlur={() => autoSave('material', editMaterial || null)}
+placeholder="없음"
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+} />
 
-          {detail.product_link && (
-            <InfoLine icon="🔗" label="제품 링크" value={
-              <a href={detail.product_link} target="_blank" rel="noreferrer" className="text-blue-500 text-sm hover:underline break-all">{detail.product_link}</a>
-            } />
-          )}
+{/* 제품 링크 */}
+<InfoLine label="제품 링크" value={
+<div>
+<input
+value={editProductLink}
+onChange={e => setEditProductLink(e.target.value)}
+onBlur={() => autoSave('product_link', editProductLink.trim() || null)}
+placeholder="없음"
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+{editProductLink && <a href={editProductLink} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline mt-1 block truncate">{editProductLink}</a>}
+</div>
+} />
 
-          {detail.upload_date && <InfoLine icon="📤" label="업로드 일시" value={<span className="text-sm">{detail.upload_date}</span>} />}
-          {detail.material && <InfoLine icon="📦" label="활용 소재" value={<span className="text-sm">{detail.material}</span>} />}
-          {detail.secondary_use && <InfoLine icon="♻️" label="2차 활용" value={<span className="text-sm">{detail.secondary_use}</span>} />}
-          {(detail as any).preferred_channels && <InfoLine icon="⭐" label="선호 채널" value={<span className="text-sm">{(detail as any).preferred_channels}</span>} />}
-          {detail.video_concept && <InfoLine icon="💡" label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
-          {detail.extra && <InfoLine icon="📝" label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
+{/* 유튜브 */}
+<InfoLine label="유튜브" value={
+<div>
+<input
+value={editYoutube}
+onChange={e => setEditYoutube(e.target.value)}
+onBlur={() => autoSave('youtube_url', editYoutube.trim() || null)}
+placeholder="없음"
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+{editYoutube && <a href={editYoutube} target="_blank" rel="noreferrer" className="text-xs text-red-500 hover:underline mt-1 block truncate">{editYoutube}</a>}
+</div>
+} />
 
-          {/* 메모 */}
-          <div className="py-3 border-b border-slate-100">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-slate-400 text-sm">📋</span>
-              <span className="text-xs font-semibold text-slate-500">메모</span>
-            </div>
-            <textarea
-              ref={memoRef}
-              value={editMemo}
-              onChange={(e) => { setEditMemo(e.target.value); autoResize(e.target); }}
-              onBlur={() => {
-                if (isSchedule) { handleScheduleMemoWithValue(entityId, editMemo); }
-                else { handleSaveMemoWithValue(entityId, editMemo); }
-              }}
-              placeholder="메모를 입력하세요..."
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-slate-50 overflow-hidden resize-none"
-              style={{ minHeight: '80px', height: 'auto' }}
-            />
-          </div>
+{detail.upload_date && <InfoLine label="업로드 일시" value={<span className="text-sm">{detail.upload_date}</span>} />}
+{detail.secondary_use && <InfoLine label="2차 활용" value={<span className="text-sm">{detail.secondary_use}</span>} />}
+{(detail as any).preferred_channels && <InfoLine label="선호 채널" value={<span className="text-sm">{(detail as any).preferred_channels}</span>} />}
+{detail.video_concept && <InfoLine label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
+{detail.extra && <InfoLine label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
 
-          {/* 수정 불가 정보 */}
-          <div className="pt-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-              <span>🔒</span> 문의자 정보 (수정 불가)
-            </p>
-            <div className="bg-slate-50 rounded-xl overflow-hidden">
-              {[
-                { icon: '👤', label: '담당자', val: detail.name },
-                { icon: '✉️', label: '이메일', val: detail.email },
-                { icon: '📞', label: '연락처', val: detail.phone },
-                { icon: '🏢', label: '사업자번호', val: detail.business_number },
-              ].map(({ icon, label, val }) => (
-                <div key={label} className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0">
-                  <span className="text-slate-400 text-sm w-5 text-center">{icon}</span>
-                  <span className="text-xs text-slate-400 w-20 shrink-0 font-medium">{label}</span>
-                  <span className="text-sm text-slate-600">{val || '없음'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+{/* 수정 불가 정보 */}
+<div className="pt-4">
+<p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+문의자 정보 (수정 불가)
+</p>
+<div className="bg-slate-50 rounded-xl overflow-hidden">
+{[
+{ label: '담당자', val: detail.name },
+{ label: '이메일', val: detail.email },
+{ label: '연락처', val: detail.phone },
+{ label: '사업자번호', val: detail.business_number },
+].map(({ label, val }) => (
+<div key={label} className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0">
+<span className="text-xs text-slate-400 w-24 shrink-0 font-medium">{label}</span>
+<span className="text-sm text-slate-600">{val || '없음'}</span>
+</div>
+))}
+</div>
+</div>
+
+{/* 메모 */}
+<div className="py-3 mt-3">
+<div className="flex items-center gap-2 mb-2">
+<span className="text-xs font-semibold text-slate-500">메모</span>
+</div>
+<textarea
+ref={memoRef}
+value={editMemo}
+onChange={(e) => { setEditMemo(e.target.value); autoResize(e.target); }}
+onBlur={() => {
+if (isSchedule) { handleScheduleMemoWithValue(entityId, editMemo); }
+else { handleSaveMemoWithValue(entityId, editMemo); }
+}}
+placeholder="메모를 입력하세요..."
+className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-slate-50 overflow-hidden resize-none"
+style={{ minHeight: '80px', height: 'auto' }}
+/>
+</div>
+
+</div>
+</div>
+);
+};
+
 
     const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
   const pendingCount = inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length;
