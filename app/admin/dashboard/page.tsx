@@ -645,14 +645,34 @@ export default function DashboardPage() {
   }) => {
     const isSchedule = detail._source === 'schedule';
     const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
+    const [statusOpen, setStatusOpen] = useState(false);
+    const statusRef = useRef<HTMLDivElement>(null);
 
     const [editBrand, setEditBrand] = useState(detail.brand || '');
     const [editChannels, setEditChannels] = useState(detail.channels || '');
     const [editYoutube, setEditYoutube] = useState(detail.youtube_url || '');
-    const [editDeadline, setEditDeadline] = useState(detail.scheduled_date || detail.deadline || '');
+    const deadlineRaw = detail.scheduled_date || detail.deadline || '';
+    const toDatetimeLocal = (v: string) => {
+      if (!v) return '';
+      if (v.includes('T')) return v.substring(0, 16);
+      if (v.length === 10) return v + 'T00:00';
+      return v.substring(0, 16);
+    };
+    const [editDeadline, setEditDeadline] = useState(toDatetimeLocal(deadlineRaw));
     const [editMemo, setEditMemo] = useState(detail.memo || '');
-    const [saving, setSaving] = useState<string | null>(null);
     const memoRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => { setStatusOpen(false); }, [detail.id]);
+
+    useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+          setStatusOpen(false);
+        }
+      };
+      if (statusOpen) document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [statusOpen]);
 
     const autoResize = (el: HTMLTextAreaElement) => {
       el.style.height = 'auto';
@@ -663,237 +683,211 @@ export default function DashboardPage() {
       if (memoRef.current) autoResize(memoRef.current);
     }, [editMemo]);
 
-    const saveField = async (field: string, value: string | null) => {
-      setSaving(field);
-      await handleSaveDetailField(entityId, field, value, isSchedule);
-      setSaving(null);
+    const autoSave = async (field: string, value: string | null) => {
+      const table = isSchedule ? 'schedules' : 'inquiries';
+      const { error } = await supabase.from(table).update({ [field]: value }).eq('id', entityId);
+      if (!error) {
+        if (isSchedule) {
+          setManualSchedules(prev => prev.map((s: any) => s.id === entityId ? { ...s, [field]: value } : s));
+        } else {
+          setInquiries(prev => prev.map(i => i.id === entityId ? { ...i, [field]: value } : i));
+        }
+        setSelectedDetail(prev => prev ? { ...prev, [field]: value } : null);
+      }
     };
 
-    const val = (v: string | undefined | null) => v || '없음';
+    const ws = (rowMeta && detail.work_statuses && detail.work_statuses[rowMeta.channel]) || detail.work_status || '시작 전';
+    const wt = (rowMeta && detail.work_types && detail.work_types[rowMeta.channel]) || detail.work_type || '콘티';
+    const statusStyle = getWorkStatusStyle(ws);
+    const formatDeadlineDisplay = (v: string) => {
+      if (!v) return '없음';
+      const d = new Date(v.includes('T') ? v : v + 'T00:00');
+      return d.toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
 
-    const ReadOnlyRow = ({ label, value }: { label: string; value?: string | null }) => (
-      <div className="flex gap-3 py-1.5 border-b border-slate-50 last:border-0">
-        <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5 font-medium">{label}</span>
-        <span className="text-slate-500 text-xs italic">{value || '없음'}</span>
+    const InfoLine = ({ icon, label, value }: { icon: string; label: string; value: React.ReactNode }) => (
+      <div className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0">
+        <span className="text-slate-400 text-sm mt-0.5 w-5 text-center shrink-0">{icon}</span>
+        <span className="text-slate-400 text-xs w-20 shrink-0 pt-0.5 font-medium">{label}</span>
+        <div className="flex-1 text-sm text-slate-800">{value}</div>
       </div>
     );
 
     return (
       <div
-        className="fixed top-0 bottom-0 right-0 w-[480px] bg-white rounded-l-2xl border-l border-slate-200 shadow-2xl overflow-y-auto z-30"
-        style={{ minHeight: '600px' }}
+        className="fixed top-0 bottom-0 right-0 w-[480px] bg-white border-l border-slate-200 shadow-2xl overflow-y-auto z-30 flex flex-col"
         ref={detailPanelRef}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-start justify-between sticky top-0 bg-white z-10">
-          <div>
-            <h2 className="text-base font-bold text-slate-800">
-              {detail.brand || editBrand || '(브랜드 없음)'}
-              {rowMeta ? ` / ${rowMeta.channel} · ${rowMeta.conceptName}` : (detail.channels ? ' / ' + detail.channels : '')}
+        <div className="px-6 pt-6 pb-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <div className="flex items-start justify-between mb-3">
+            <h2 className="text-xl font-bold text-slate-800 leading-tight">
+              {editBrand || detail.brand || '(브랜드 없음)'}
+              {rowMeta ? <span className="text-slate-400 font-normal"> / {rowMeta.conceptName}</span> : null}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {isSchedule ? '일정' : '문의'} · {detail.scheduled_date ? '승인일: ' + detail.scheduled_date : '승인일 없음'}
-            </p>
-            <div className="flex items-center gap-2 mt-2">
-              {rowMeta
-                ? <RowWorkStatus inq={detail} channel={rowMeta.channel} rowKey={'detail__' + detail.id + '__' + rowMeta.channel} />
-                : <WorkStatusBadge inq={detail} />}
-              {rowMeta
-                ? <RowWorkType inq={detail} channel={rowMeta.channel} />
-                : <WorkTypeBadge inq={detail} />}
+            <div className="flex items-center gap-1 shrink-0 ml-2">
+              <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="삭제">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
+              </button>
+              <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all" title="닫기">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-2 shrink-0">
-            <button onClick={onDelete} className="px-3 py-1 text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg">삭제</button>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
+          {/* Status + WorkType row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative" ref={statusRef}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setStatusOpen(o => !o); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusStyle.color} hover:opacity-80 transition-all`}
+              >
+                <span className={`w-2 h-2 rounded-full ${statusStyle.dot}`}></span>
+                {ws}
+                <span className="opacity-60">▾</span>
+              </button>
+              {statusOpen && (
+                <div className="absolute left-0 top-9 z-50 bg-white rounded-xl shadow-xl border border-slate-100 p-2 w-44 space-y-0.5">
+                  {WORK_STATUSES.map(s => (
+                    <button
+                      key={s.label}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isSchedule) { handleScheduleWorkStatus(entityId, s.label); }
+                        else if (rowMeta) { handleRowWorkStatus(detail.id, rowMeta.channel, s.label); }
+                        else { handleWorkStatus(detail.id, s.label); }
+                        setStatusOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-50 transition-all ${ws === s.label ? s.color : 'text-slate-600'}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${s.dot}`}></span>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {WORK_TYPES.map(t => (
+              <button
+                key={t}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isSchedule) { handleScheduleWorkType(entityId, t); }
+                  else if (rowMeta) { handleRowWorkType(detail.id, rowMeta.channel, t); }
+                  else { handleWorkType(detail.id, t); }
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${wt === t ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Editable fields */}
-        <div className="p-5 space-y-4">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">✏️ 수정 가능 정보</p>
+        {/* Body */}
+        <div className="flex-1 px-6 py-4 space-y-0">
 
-          {/* Brand */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">브랜드</label>
-            <div className="flex gap-2">
-              <input
-                value={editBrand}
-                onChange={e => setEditBrand(e.target.value)}
-                placeholder="없음"
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-              <button
-                onClick={() => saveField('brand', editBrand || null)}
-                disabled={saving === 'brand'}
-                className="px-3 py-2 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 disabled:opacity-60"
-              >{saving === 'brand' ? '저장중' : '저장'}</button>
-            </div>
-          </div>
+          {/* 브랜드 */}
+          <InfoLine icon="🏷️" label="브랜드" value={
+            <input
+              value={editBrand}
+              onChange={e => setEditBrand(e.target.value)}
+              onBlur={() => autoSave('brand', editBrand || null)}
+              placeholder="없음"
+              className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+            />
+          } />
 
-          {/* Channels */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">채널</label>
-            <div className="flex gap-2">
-              <input
-                value={editChannels}
-                onChange={e => setEditChannels(e.target.value)}
-                placeholder="없음"
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-              <button
-                onClick={() => saveField('channels', editChannels || null)}
-                disabled={saving === 'channels'}
-                className="px-3 py-2 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 disabled:opacity-60"
-              >{saving === 'channels' ? '저장중' : '저장'}</button>
-            </div>
-          </div>
+          {/* 데드라인 */}
+          <InfoLine icon="📅" label="데드라인" value={
+            <input
+              type="datetime-local"
+              value={editDeadline}
+              onChange={e => setEditDeadline(e.target.value)}
+              onBlur={() => {
+                const field = isSchedule ? 'deadline' : 'scheduled_date';
+                autoSave(field, editDeadline || null);
+              }}
+              className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+            />
+          } />
 
-          {/* Work type */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">작업 타입</label>
-            <div className="flex gap-2">
-              {rowMeta
-                ? <RowWorkType inq={detail} channel={rowMeta.channel} />
-                : <WorkTypeBadge inq={detail} />}
-            </div>
-          </div>
+          {/* 채널 */}
+          <InfoLine icon="📡" label="채널" value={
+            <input
+              value={editChannels}
+              onChange={e => setEditChannels(e.target.value)}
+              onBlur={() => autoSave('channels', editChannels || null)}
+              placeholder="없음"
+              className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+            />
+          } />
 
-          {/* Work status */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">작업 상태</label>
+          {/* 유튜브 */}
+          <InfoLine icon="▶️" label="유튜브" value={
             <div>
-              {rowMeta
-                ? <RowWorkStatus inq={detail} channel={rowMeta.channel} rowKey={'editpanel__' + detail.id + '__' + rowMeta.channel} />
-                : <WorkStatusBadge inq={detail} />}
-            </div>
-          </div>
-
-          {/* Deadline */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">데드라인</label>
-            <div className="flex gap-2">
               <input
-                type="date"
-                value={editDeadline ? editDeadline.substring(0, 10) : ''}
-                onChange={e => setEditDeadline(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-              <button
-                onClick={() => {
-                  const field = isSchedule ? 'deadline' : 'scheduled_date';
-                  saveField(field, editDeadline || null);
-                }}
-                disabled={saving === 'deadline' || saving === 'scheduled_date'}
-                className="px-3 py-2 bg-blue-500 text-white rounded-xl text-xs font-semibold hover:bg-blue-600 disabled:opacity-60"
-              >{(saving === 'deadline' || saving === 'scheduled_date') ? '저장중' : '저장'}</button>
-            </div>
-            {!editDeadline && <p className="text-xs text-slate-400 mt-1">없음</p>}
-          </div>
-
-          {/* YouTube */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">유튜브 링크</label>
-            {detail.youtube_url && (
-              <div className="mb-1">
-                <a href={detail.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-xs underline break-all">{detail.youtube_url}</a>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="url"
                 value={editYoutube}
                 onChange={e => setEditYoutube(e.target.value)}
-                placeholder="https://youtube.com/..."
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onBlur={() => autoSave('youtube_url', editYoutube.trim() || null)}
+                placeholder="없음"
+                className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
               />
-              <button
-                onClick={() => saveField('youtube_url', editYoutube.trim() || null)}
-                disabled={saving === 'youtube_url'}
-                className="px-3 py-2 bg-red-500 text-white rounded-xl text-xs font-semibold hover:bg-red-600 disabled:opacity-60"
-              >{saving === 'youtube_url' ? '저장중' : '저장'}</button>
+              {editYoutube && <a href={editYoutube} target="_blank" rel="noreferrer" className="text-xs text-red-500 hover:underline mt-1 block truncate">{editYoutube}</a>}
             </div>
-          </div>
+          } />
 
-          {/* Memo */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">메모</label>
+          {detail.product_link && (
+            <InfoLine icon="🔗" label="제품 링크" value={
+              <a href={detail.product_link} target="_blank" rel="noreferrer" className="text-blue-500 text-sm hover:underline break-all">{detail.product_link}</a>
+            } />
+          )}
+
+          {detail.upload_date && <InfoLine icon="📤" label="업로드 일시" value={<span className="text-sm">{detail.upload_date}</span>} />}
+          {detail.material && <InfoLine icon="📦" label="활용 소재" value={<span className="text-sm">{detail.material}</span>} />}
+          {detail.secondary_use && <InfoLine icon="♻️" label="2차 활용" value={<span className="text-sm">{detail.secondary_use}</span>} />}
+          {(detail as any).preferred_channels && <InfoLine icon="⭐" label="선호 채널" value={<span className="text-sm">{(detail as any).preferred_channels}</span>} />}
+          {detail.video_concept && <InfoLine icon="💡" label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
+          {detail.extra && <InfoLine icon="📝" label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
+
+          {/* 메모 */}
+          <div className="py-3 border-b border-slate-100">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-slate-400 text-sm">📋</span>
+              <span className="text-xs font-semibold text-slate-500">메모</span>
+            </div>
             <textarea
               ref={memoRef}
               value={editMemo}
               onChange={(e) => { setEditMemo(e.target.value); autoResize(e.target); }}
+              onBlur={() => {
+                if (isSchedule) { handleScheduleMemoWithValue(entityId, editMemo); }
+                else { handleSaveMemoWithValue(entityId, editMemo); }
+              }}
               placeholder="메모를 입력하세요..."
-              className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-amber-50 overflow-hidden resize-none"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-slate-50 overflow-hidden resize-none"
               style={{ minHeight: '80px', height: 'auto' }}
             />
-            <button
-              onClick={() => {
-                if (isSchedule) {
-                  handleScheduleMemoWithValue(entityId, editMemo);
-                } else {
-                  handleSaveMemoWithValue(entityId, editMemo);
-                }
-              }}
-              disabled={savingMemo === entityId}
-              className="mt-2 px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 disabled:opacity-60"
-            >
-              {savingMemo === entityId ? '저장 중...' : '메모 저장'}
-            </button>
           </div>
 
-          {/* Other info */}
-          {detail.upload_date && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">업로드 일시</span>
-              <span className="text-slate-700 text-xs">{detail.upload_date}</span>
-            </div>
-          )}
-          {detail.product_link && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">제품 링크</span>
-              <a href={detail.product_link} target="_blank" rel="noreferrer" className="text-blue-500 text-xs underline break-all">{detail.product_link}</a>
-            </div>
-          )}
-          {detail.material && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">활용 소재</span>
-              <span className="text-slate-700 text-xs">{detail.material}</span>
-            </div>
-          )}
-          {detail.secondary_use && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">2차 활용</span>
-              <span className="text-slate-700 text-xs">{detail.secondary_use}</span>
-            </div>
-          )}
-          {(detail as any).preferred_channels && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">선호 채널</span>
-              <span className="text-slate-700 text-xs">{(detail as any).preferred_channels}</span>
-            </div>
-          )}
-          {detail.video_concept && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">희망 컨셉</span>
-              <span className="text-slate-700 text-xs whitespace-pre-wrap">{detail.video_concept}</span>
-            </div>
-          )}
-          {detail.extra && (
-            <div className="flex gap-3">
-              <span className="text-slate-400 w-20 shrink-0 text-xs pt-0.5">기타</span>
-              <span className="text-slate-700 text-xs whitespace-pre-wrap">{detail.extra}</span>
-            </div>
-          )}
-
-          {/* Read-only section */}
-          <div className="mt-6 pt-4 border-t border-slate-200">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">🔒 수정 불가 정보 (문의자)</p>
-            <div className="bg-slate-50 rounded-xl p-4 space-y-1">
-              <ReadOnlyRow label="담당자" value={detail.name} />
-              <ReadOnlyRow label="이메일" value={detail.email} />
-              <ReadOnlyRow label="연락처" value={detail.phone} />
-              <ReadOnlyRow label="사업자번호" value={detail.business_number} />
+          {/* 수정 불가 정보 */}
+          <div className="pt-4">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <span>🔒</span> 문의자 정보 (수정 불가)
+            </p>
+            <div className="bg-slate-50 rounded-xl overflow-hidden">
+              {[
+                { icon: '👤', label: '담당자', val: detail.name },
+                { icon: '✉️', label: '이메일', val: detail.email },
+                { icon: '📞', label: '연락처', val: detail.phone },
+                { icon: '🏢', label: '사업자번호', val: detail.business_number },
+              ].map(({ icon, label, val }) => (
+                <div key={label} className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0">
+                  <span className="text-slate-400 text-sm w-5 text-center">{icon}</span>
+                  <span className="text-xs text-slate-400 w-20 shrink-0 font-medium">{label}</span>
+                  <span className="text-sm text-slate-600">{val || '없음'}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -901,7 +895,7 @@ export default function DashboardPage() {
     );
   };
 
-  const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
+    const { firstDay, daysInMonth, year, month } = getDaysInMonth(currentMonth);
   const pendingCount = inquiries.filter(i => i.type === 'ad' && (!i.ad_review_status || i.ad_review_status === 'pending')).length;
   const approvedInquiries = inquiries.filter(i => i.status === 'approved' && i.scheduled_date);
   const tableRows = (() => {
@@ -1208,7 +1202,7 @@ export default function DashboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
-                    {['번호', '브랜드', '채널', '콘티', '영상', '작업타입', '작업', '담당자', '데드라인', '유튜브'].map(h => (
+                    {['번호', '브랜드', '채널', '데드라인', '콘티', '영상', '작업타입', '작업', '담당자', '유튜브'].map(h => (
                       <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -1227,6 +1221,9 @@ export default function DashboardPage() {
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           <div className="font-medium text-slate-700">{ch}</div>
                           <div className="text-[10px] text-slate-400 mt-0.5">{row.conceptName}</div>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
+                          {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.length > 10 ? deadlineStr.substring(0, 16).replace('T', ' ') : deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
                         </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <select value={sa[ch] || ''} onChange={(e) => handleAssign(inq.id, ch, 'storyboard', e.target.value)} className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
@@ -1247,9 +1244,6 @@ export default function DashboardPage() {
                           <RowWorkStatus inq={inq} channel={ch} rowKey={row.rowKey} />
                         </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">{inq.name || '-'}</td>
-                        <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
-                          {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
-                        </td>
                         <td className="px-3 py-2">
                           {inq.youtube_url
                             ? <a href={inq.youtube_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-red-500 text-xs font-semibold hover:underline">▶ YT</a>
