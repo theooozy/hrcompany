@@ -480,7 +480,7 @@ export default function DashboardPage() {
   };
 
   const getApprovedForDate = (dateStr: string) => [
-    ...inquiries.filter(i => i.status === 'approved' && i.scheduled_date === dateStr).map(i => ({ ...i, _source: 'inquiry' })),
+    ...inquiries.filter(i => i.status === 'approved' && i.scheduled_date && (i.scheduled_date === dateStr || i.scheduled_date.startsWith(dateStr))).map(i => ({ ...i, _source: 'inquiry' })),
     ...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, brand_name: s.brand_name, brand: s.brand_name || s.product_name, _source: 'schedule' }))
   ];
   const formatDate = (dateStr: string) => { if (!dateStr) return ''; const d = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T00:00:00'); if (isNaN(d.getTime())) return dateStr; return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
