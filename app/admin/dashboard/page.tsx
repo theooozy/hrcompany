@@ -665,6 +665,7 @@ const [editMaterial, setEditMaterial] = useState(detail.material || '');
 const [editProductLink, setEditProductLink] = useState(detail.product_link || '');
 const [editMemo, setEditMemo] = useState(detail.memo || '');
 const memoRef = useRef<HTMLTextAreaElement>(null);
+const deadlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 const ALL_CHANNELS = [
 '셀럽온', '찐예쁨', '미모지상주의', '쇼잉', '쇼숏', '숏됐다',
@@ -851,8 +852,16 @@ className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-all $
 <input
 type="datetime-local"
 value={editDeadline}
-onChange={e => setEditDeadline(e.target.value)}
+onChange={e => {
+setEditDeadline(e.target.value);
+if (deadlineTimerRef.current) clearTimeout(deadlineTimerRef.current);
+deadlineTimerRef.current = setTimeout(() => {
+const field = isSchedule ? 'deadline' : 'scheduled_date';
+autoSave(field, e.target.value || null);
+}, 800);
+}}
 onBlur={() => {
+if (deadlineTimerRef.current) clearTimeout(deadlineTimerRef.current);
 const field = isSchedule ? 'deadline' : 'scheduled_date';
 autoSave(field, editDeadline || null);
 }}
