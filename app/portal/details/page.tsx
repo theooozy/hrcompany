@@ -36,6 +36,7 @@ const router = useRouter();
 const [session, setSession] = useState<Session | null>(null);
 const [submitted, setSubmitted] = useState(false);
 const [loading, setLoading] = useState(false);
+const [submitError, setSubmitError] = useState('');
 const [form, setForm] = useState({
 business_number: '',
 upload_date: '',
@@ -78,32 +79,64 @@ prev.includes(channel) ? prev.filter(c => c !== channel) : [...prev, channel]
 
 const handleSubmit = async (e: React.FormEvent) => {
 e.preventDefault();
-if (!session) return;
+if (!session) {
+setSubmitError('세션이 없습니다. 다시 로그인해주세요.');
+return;
+}
 setLoading(true);
-try {
+setSubmitError('');
+
 const secondaryUse = form.secondary_use === '기타'
 ? (form.secondary_use_custom || '기타')
 : form.secondary_use;
 
 const updatePayload: Record<string, unknown> = {
 type: 'ad',
-business_number: form.business_number,
+business_number: form.business_number || null,
 upload_date: form.upload_date || null,
-material: form.material_none ? '없음' : form.material,
-product_link: form.product_link_none ? '없음' : form.product_link,
-secondary_use: secondaryUse,
-video_concept: form.video_concept,
-extra: form.extra,
+material: form.material_none ? '없음' : (form.material || null),
+product_link: form.product_link_none ? '없음' : (form.product_link || null),
+secondary_use: secondaryUse || null,
+video_concept: form.video_concept || null,
+extra: form.extra || null,
 preferred_channels: preferredChannels.length > 0 ? preferredChannels.join(', ') : null,
 };
 
-const { error } = await supabase.from('inquiries').update(updatePayload).eq('id', session.id);
-if (error) throw new Error(error.message);
+try {
+const timeoutPromise = new Promise<never>((_, reject) =>
+setTimeout(() => reject(new Error('요청 시간이 초과되었습니다. 네트워크를 확인해주세요.')), 15000)
+);
+
+const updatePromise = supabase
+.from('inquiries')
+.update(updatePayload)
+.eq('id', session.id)
+.select();
+
+const result = await Promise.race([updatePromise, timeoutPromise]);
+const { data, error } = result as { data: any; error: any };
+
+if (error) {
+if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy')) {
+setSubmitError('권한 오류: 관리자에게 문의해주세요. (RLS)');
+} else {
+setSubmitError('제출 오류: ' + error.message);
+}
+setLoading(false);
+return;
+}
+
+if (!data || data.length === 0) {
+setSubmitError('업데이트된 항목이 없습니다. 관리자에게 문의해주세요.');
+setLoading(false);
+return;
+}
+
+setLoading(false);
 setSubmitted(true);
 } catch (err: unknown) {
 const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
-alert('제출 오류: ' + msg);
-} finally {
+setSubmitError(msg);
 setLoading(false);
 }
 };
@@ -204,56 +237,34 @@ className={ic}
 </div>
 </div>
 
-{/* 선호하는 채널 선택 */}
 <div>
 <label className={lc}>선호하는 채널 <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span></label>
-
-{/* 국내 채널 */}
 <div className="mb-4">
 <div className="flex items-center gap-2 mb-2">
 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">🇰🇷 국내 채널</span>
 </div>
 <div className="flex flex-wrap gap-2">
 {DOMESTIC_CHANNELS.map(ch => (
-<button
-key={ch}
-type="button"
-onClick={() => handleChannelToggle(ch)}
-className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-preferredChannels.includes(ch)
-? 'bg-blue-600 text-white border-blue-600'
-: 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'
-}`}
->
+<button key={ch} type="button" onClick={() => handleChannelToggle(ch)}
+className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${preferredChannels.includes(ch) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'}`}>
 {ch}
 </button>
 ))}
 </div>
 </div>
-
-{/* 일본 채널 */}
 <div>
 <div className="flex items-center gap-2 mb-2">
 <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">🇯🇵 일본 채널</span>
 </div>
 <div className="flex flex-wrap gap-2">
 {JAPAN_CHANNELS.map(ch => (
-<button
-key={ch}
-type="button"
-onClick={() => handleChannelToggle(ch)}
-className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-preferredChannels.includes(ch)
-? 'bg-red-500 text-white border-red-500'
-: 'bg-white text-slate-600 border-slate-200 hover:border-red-400 hover:text-red-500'
-}`}
->
+<button key={ch} type="button" onClick={() => handleChannelToggle(ch)}
+className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${preferredChannels.includes(ch) ? 'bg-red-500 text-white border-red-500' : 'bg-white text-slate-600 border-slate-200 hover:border-red-400 hover:text-red-500'}`}>
 {ch}
 </button>
 ))}
 </div>
 </div>
-
 {preferredChannels.length > 0 && (
 <div className="mt-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
 <span className="text-xs text-slate-500">선택된 채널: </span>
@@ -271,6 +282,12 @@ preferredChannels.includes(ch)
 <label className={lc}>기타 전달 사항</label>
 <textarea name="extra" value={form.extra} onChange={handleChange} rows={2} placeholder="추가 전달 사항을 입력해주세요." className={ic + ' resize-none'} />
 </div>
+
+{submitError && (
+<div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+{submitError}
+</div>
+)}
 
 <button
 type="submit"
