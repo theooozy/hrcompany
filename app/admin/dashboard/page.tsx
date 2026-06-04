@@ -29,12 +29,12 @@ const WORK_TYPES = ['콘티', '영상'];
 const JP_CHANNEL_KR: Record<string, string> = {
   'ワクワク': '와쿠와쿠',
   'スポログ': '스포로그',
-  '笑慇の一秒': '에무의 일초',
-  'おもしろ塾': '오모시로쥬쿠',
-  '一瞬劇場': '잇슌게키조',
-  '絆タイム': '기즈나타이무',
+  '笑撃の一秒': '웃음의 1초',
+  'おもしろ塾': '재미학원',
+  '一瞬劇場': '순간극장',
+  '絆タイム': '인연의 시간',
   'チーズケーキ': '치즈케이크',
-  'オイシイワールド': '오이시이왈드',
+  'オイシイワールド': '맛있는 세계',
   'モグモグ': '모구모구',
   'トレ韓': '토레칸',
 };
@@ -417,9 +417,9 @@ export default function DashboardPage() {
   };
   const ALL_DEFAULT_CHANNELS = [
     '셀럽온', '찐예쁨', '미모지상주의', '쇼잉', '쇼숏', '숏됐다',
-    '밈튜브', '숏스커버리', '유니랜드', '신기+탬', '숏믈리에',
+    '밈튜브', '숏스커버리', '유니랜드', '신기+템', '숏믈리에',
     '디어랩', '숏픽', '두근두근', '전국댓글자랑', '숏플레시', '출석체크',
-    'ワクワク', 'スポログ', '笑慇の一秒', 'おもしろ塾', '一瞬劇場',
+    'ワクワク', 'スポログ', '笑撃の一秒', 'おもしろ塾', '一瞬劇場',
     '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
   ];
   const initMissingChannels = async (existingMap: Record<string, { person_name: string; tts_info: string }>) => {
@@ -698,9 +698,9 @@ const deadlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 const ALL_CHANNELS = [
 '셀럽온', '찐예쁨', '미모지상주의', '쇼잉', '쇼숏', '숏됐다',
-'밈튜브', '숏스커버리', '유니랜드', '신기+탬', '숏믈리에',
+'밈튜브', '숏스커버리', '유니랜드', '신기+템', '숏믈리에',
 '디어랩', '숏픽', '두근두근', '전국댓글자랑', '숏플레시', '출석체크',
-'ワクワク', 'スポログ', '笑慇の一秒', 'おもしろ塾', '一瞬劇場',
+'ワクワク', 'スポログ', '笑撃の一秒', 'おもしろ塾', '一瞬劇場',
 '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
 ];
 const channelOptions = Object.keys(channelSettings).length > 0
@@ -1755,7 +1755,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                   <option value="밈튜브">밈튜브</option>
                   <option value="숏스커버리">숏스커버리</option>
                   <option value="유니랜드">유니랜드</option>
-                  <option value="신기+탬">신기+탬</option>
+                  <option value="신기+템">신기+템</option>
                   <option value="숏믈리에">숏믈리에</option>
                   <option value="디어랩">디어랩</option>
                   <option value="숏픽">숏픽</option>
@@ -1765,12 +1765,12 @@ style={{ minHeight: '80px', height: 'auto' }}
                   <option value="출석체크">출석체크</option>
                   <option value="ワクワク">ワクワク(와쿠와쿠)</option>
                   <option value="スポログ">スポログ(스포로그)</option>
-                  <option value="笑慇の一秒">笑慇の一秒(에무의 일초)</option>
-                  <option value="おもしろ塾">おもしろ塾(오모시로쥬쿠)</option>
-                  <option value="一瞬劇場">一瞬劇場(잇슌게키조)</option>
-                  <option value="絆タイム">絆タイム(기즈나타이무)</option>
+                  <option value="笑撃の一秒">笑撃の一秒(웃음의 1초)</option>
+                  <option value="おもしろ塾">おもしろ塾(재미학원)</option>
+                  <option value="一瞬劇場">一瞬劇場(순간극장)</option>
+                  <option value="絆タイム">絆タイム(인연의 시간)</option>
                   <option value="チーズケーキ">チーズケーキ(치즈케이크)</option>
-                  <option value="オイシイワールド">オイシイワールド(오이시이왈드)</option>
+                  <option value="オイシイワールド">オイシイワールド(맛있는 세계)</option>
                   <option value="モグモグ">モグモグ(모구모구)</option>
                   <option value="トレ韓">トレ韓(토레칸)</option>
                 </select>
