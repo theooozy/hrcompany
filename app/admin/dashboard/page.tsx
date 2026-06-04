@@ -1843,11 +1843,11 @@ style={{ minHeight: '80px', height: 'auto' }}
                    <option value="시작 전">시작 전</option>
                    <option value="수정 필요">수정 필요</option>
                    <option value="진행 중">진행 중</option>
-                   <option value="코켈 쯠푸 중">코켈 쯠푸 중</option>
-                   <option value="영상 쯠푸 중">영상 쯠푸 중</option>
-                   <option value="쯠푸 완들">쯠푸 완들</option>
-                   <option value="영상 완들">영상 완들</option>
-                   <option value="코켈 완들">코켈 완들</option>
+                   <option value="콘티 컴펌 중">콘티 컴펌 중</option>
+                   <option value="영상 컴펌 중">영상 컴펌 중</option>
+                   <option value="컴펌 완료">컴펌 완료</option>
+                   <option value="영상 완료">영상 완료</option>
+                   <option value="콘티 완료">콘티 완료</option>
                    <option value="보류">보류</option>
                    <option value="취소">취소</option>
                  </select>
