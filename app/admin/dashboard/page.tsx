@@ -243,6 +243,7 @@ export default function DashboardPage() {
     if (!error) {
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_status: status } : i));
       if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, work_status: status } : null);
+      if (calendarDetail?.id === id) setCalendarDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
     }
     setStatusDropdown(null);
   };
@@ -252,6 +253,7 @@ export default function DashboardPage() {
     if (!error) {
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_type: wtype } : i));
       if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, work_type: wtype } : null);
+      if (calendarDetail?.id === id) setCalendarDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
     }
   };
 
@@ -341,6 +343,9 @@ export default function DashboardPage() {
       setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_status: status } : s));
       if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
         setSelectedDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
+        if (calendarDetail && (calendarDetail._scheduleId === id || calendarDetail.id === id)) {
+          setCalendarDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
+        }
       }
     }
     setStatusDropdown(null);
@@ -352,6 +357,9 @@ export default function DashboardPage() {
       setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_type: wtype } : s));
       if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
         setSelectedDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
+        if (calendarDetail && (calendarDetail._scheduleId === id || calendarDetail.id === id)) {
+          setCalendarDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
+        }
       }
     }
   };
@@ -697,7 +705,7 @@ const ALL_CHANNELS = [
 '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
 ];
 const channelOptions = Object.keys(channelSettings).length > 0
-? Object.keys(channelSettings).sort((a, b) => a.localeCompare(b, 'ko'))
+? Object.keys(channelSettings).sort((a, b) => { const isJpA = /[\u3040-\u30FF]/.test(a); const isJpB = /[\u3040-\u30FF]/.test(b); if (isJpA && !isJpB) return 1; if (!isJpA && isJpB) return -1; return a.localeCompare(b, isJpA ? 'ja' : 'ko'); })
 : ALL_CHANNELS;
 
 useEffect(() => { setStatusOpen(false); setChannelOpen(false); }, [detail.id]);
@@ -734,6 +742,7 @@ setManualSchedules(prev => prev.map((s: any) => s.id === entityId ? { ...s, [fie
 setInquiries(prev => prev.map(i => i.id === entityId ? { ...i, [field]: value } : i));
 }
 setSelectedDetail(prev => prev ? { ...prev, [field]: value } : null);
+      setCalendarDetail(prev => prev ? { ...prev, [field]: value } : null);
 }
 };
 
@@ -1535,7 +1544,13 @@ style={{ minHeight: '80px', height: 'auto' }}
               <div className="col-span-4">TTS</div>
               <div className="col-span-1 text-right">삭제</div>
             </div>
-            {Object.keys(channelSettings).sort((a, b) => a.localeCompare(b, 'ko')).map((ch) => {
+        {Object.keys(channelSettings).sort((a, b) => {
+          const isJpA = /[\u3040-\u30FF\u31F0-\u31FF\uFF66-\uFF9D]/.test(a);
+          const isJpB = /[\u3040-\u30FF\u31F0-\u31FF\uFF66-\uFF9D]/.test(b);
+          if (isJpA && !isJpB) return 1;
+          if (!isJpA && isJpB) return -1;
+          return a.localeCompare(b, isJpA ? 'ja' : 'ko');
+        }).map((ch) => {
               const cur = channelSettings[ch] || { person_name: '', tts_info: '' };
               return (
                 <div key={ch} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50/40">
