@@ -26,6 +26,21 @@ const WORK_STATUSES = [
 
 const WORK_TYPES = ['콘티', '영상'];
 
+const JP_CHANNEL_KR: Record<string, string> = {
+  'ワクワク': '와쿠와쿠',
+  'スポログ': '스포로그',
+  '笑慇の一秒': '에무의 일초',
+  'おもしろ塾': '오모시로쥬쿠',
+  '一瞬劇場': '잇슌게키조',
+  '絆タイム': '기즈나타이무',
+  'チーズケーキ': '치즈케이크',
+  'オイシイワールド': '오이시이왈드',
+  'モグモグ': '모구모구',
+  'トレ韓': '토레칸',
+};
+const getChLabel = (ch: string): string => JP_CHANNEL_KR[ch] ? ch + "(" + JP_CHANNEL_KR[ch] + ")" : ch;
+
+
 type Inquiry = {
   id: string;
   created_at: string;
@@ -239,22 +254,18 @@ export default function DashboardPage() {
   };
 
   const handleWorkStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from('inquiries').update({ work_status: status }).eq('id', id);
-    if (!error) {
-      setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_status: status } : i));
-      if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, work_status: status } : null);
-      if (calendarDetail?.id === id) setCalendarDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
-    }
+    setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_status: status } : i));
+    if (selectedDetail?.id === id) setSelectedDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
+    if (calendarDetail?.id === id) setCalendarDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
     setStatusDropdown(null);
+    await supabase.from('inquiries').update({ work_status: status }).eq('id', id);
   };
 
   const handleWorkType = async (id: string, wtype: string) => {
-    const { error } = await supabase.from('inquiries').update({ work_type: wtype }).eq('id', id);
-    if (!error) {
-      setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_type: wtype } : i));
-      if (selectedDetail?.id === id) setSelectedDetail(prev => prev ? { ...prev, work_type: wtype } : null);
-      if (calendarDetail?.id === id) setCalendarDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
-    }
+    setInquiries(prev => prev.map(i => i.id === id ? { ...i, work_type: wtype } : i));
+    if (selectedDetail?.id === id) setSelectedDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
+    if (calendarDetail?.id === id) setCalendarDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
+    await supabase.from('inquiries').update({ work_type: wtype }).eq('id', id);
   };
 
   const handleSaveMemo = async (id: string) => {
@@ -338,30 +349,18 @@ export default function DashboardPage() {
   };
 
   const handleScheduleWorkStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from('schedules').update({ work_status: status }).eq('id', id);
-    if (!error) {
-      setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_status: status } : s));
-      if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
-        setSelectedDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
-        if (calendarDetail && (calendarDetail._scheduleId === id || calendarDetail.id === id)) {
-          setCalendarDetail((prev: any) => prev ? { ...prev, work_status: status } : null);
-        }
-      }
-    }
+    setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_status: status } : s));
+    if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) { setSelectedDetail((prev: any) => prev ? { ...prev, work_status: status } : null); }
+    if (calendarDetail && (calendarDetail._scheduleId === id || calendarDetail.id === id)) { setCalendarDetail((prev: any) => prev ? { ...prev, work_status: status } : null); }
     setStatusDropdown(null);
+    await supabase.from('schedules').update({ work_status: status }).eq('id', id);
   };
 
   const handleScheduleWorkType = async (id: string, wtype: string) => {
-    const { error } = await supabase.from('schedules').update({ work_type: wtype }).eq('id', id);
-    if (!error) {
-      setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_type: wtype } : s));
-      if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) {
-        setSelectedDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
-        if (calendarDetail && (calendarDetail._scheduleId === id || calendarDetail.id === id)) {
-          setCalendarDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null);
-        }
-      }
-    }
+    setManualSchedules(prev => prev.map((s: any) => s.id === id ? { ...s, work_type: wtype } : s));
+    if (selectedDetail && (selectedDetail._scheduleId === id || selectedDetail.id === id)) { setSelectedDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null); }
+    if (calendarDetail && (calendarDetail._scheduleId === id || calendarDetail.id === id)) { setCalendarDetail((prev: any) => prev ? { ...prev, work_type: wtype } : null); }
+    await supabase.from('schedules').update({ work_type: wtype }).eq('id', id);
   };
 
   const handleScheduleMemo = async (id: string) => {
@@ -850,7 +849,7 @@ type="button"
 onClick={(e) => { e.stopPropagation(); setChannelOpen(o => !o); }}
 className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all text-left flex items-center justify-between"
 >
-<span className={editChannels ? 'text-slate-800' : 'text-slate-400'}>{editChannels || '없음'}</span>
+<span className={editChannels ? 'text-slate-800' : 'text-slate-400'}>{editChannels ? getChLabel(editChannels) : '없음'}</span>
 <span className="text-slate-400 text-xs ml-1">▾</span>
 </button>
 {channelOpen && (
@@ -871,7 +870,7 @@ autoSave('channels', ch);
 setChannelOpen(false);
 }}
 className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-all ${editChannels === ch ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700'}`}
->{ch}</button>
+>{getChLabel(ch)}</button>
 ))}
 </div>
 )}
@@ -1555,7 +1554,7 @@ style={{ minHeight: '80px', height: 'auto' }}
               return (
                 <div key={ch} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50/40">
                   <div className="col-span-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>{ch}
+                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>{getChLabel(ch)}
                   </div>
                   <div className="col-span-4">
                     <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
@@ -1764,16 +1763,16 @@ style={{ minHeight: '80px', height: 'auto' }}
                   <option value="전국댓글자랑">전국댓글자랑</option>
                   <option value="숏플레시">숏플레시</option>
                   <option value="출석체크">출석체크</option>
-                  <option value="ワクワク">ワクワク</option>
-                  <option value="スポログ">スポログ</option>
-                  <option value="笑慇の一秒">笑慇の一秒</option>
-                  <option value="おもしろ塾">おもしろ塾</option>
-                  <option value="一瞬劇場">一瞬劇場</option>
-                  <option value="絆タイム">絆タイム</option>
-                  <option value="チーズケーキ">チーズケーキ</option>
-                  <option value="オイシイワールド">オイシイワールド</option>
-                  <option value="モグモグ">モグモグ</option>
-                  <option value="トレ韓">トレ韓</option>
+                  <option value="ワクワク">ワクワク(와쿠와쿠)</option>
+                  <option value="スポログ">スポログ(스포로그)</option>
+                  <option value="笑慇の一秒">笑慇の一秒(에무의 일초)</option>
+                  <option value="おもしろ塾">おもしろ塾(오모시로쥬쿠)</option>
+                  <option value="一瞬劇場">一瞬劇場(잇슌게키조)</option>
+                  <option value="絆タイム">絆タイム(기즈나타이무)</option>
+                  <option value="チーズケーキ">チーズケーキ(치즈케이크)</option>
+                  <option value="オイシイワールド">オイシイワールド(오이시이왈드)</option>
+                  <option value="モグモグ">モグモグ(모구모구)</option>
+                  <option value="トレ韓">トレ韓(토레칸)</option>
                 </select>
               </div>
               <div>
