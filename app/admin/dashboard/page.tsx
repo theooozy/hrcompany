@@ -189,14 +189,19 @@ export default function DashboardPage() {
   };
 
   const handleAdReview = async (id: string, status: 'approved' | 'rejected' | 'pending', scheduledDate?: string) => {
-    const updates: { ad_review_status: string; scheduled_date?: string; work_type?: string; status?: string } = { ad_review_status: status };
+    const inq = inquiries.find(i => i.id === id);
+    const updates: { ad_review_status: string; scheduled_date?: string; work_type?: string; status?: string; channels?: string } = { ad_review_status: status };
     if (status === 'approved' && scheduledDate) {
       updates.scheduled_date = scheduledDate;
       updates.status = 'approved';
       updates.work_type = '광고';
+      // If preferred_channels is set, apply them as channels for multi-concept generation
+      if (inq && inq.preferred_channels && (inq.preferred_channels as string).trim()) {
+        updates.channels = (inq.preferred_channels as string).trim();
+      }
     }
     const { error } = await supabase.from('inquiries').update(updates).eq('id', id);
-    if (error) { alert('오류: ' + error.message); return; }
+    if (error) { alert('오š: ' + error.message); return; }
     setInquiries(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
   };
 
