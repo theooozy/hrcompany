@@ -7,7 +7,7 @@ type Session = { id: string; name: string; email: string };
 
 const CHANNEL_PRICES = [
 // 국내 채널
-{ name: '셀럽온', platform: 'YouTube · IG · TikTok', subscribers: '1.16만 / 153 / 185', makePrice: 80, postPrice: 35, link: 'https://www.youtube.com/@셀럽은', featured: true },
+{ name: '셀럽온', platform: 'YouTube · IG · TikTok', subscribers: '1.16만 / 153 / 185', makePrice: 80, postPrice: 35, link: 'https://www.youtube.com/@%EC%85%80%EB%9F%BD%EC%98%A8', featured: true },
 { name: '찐예쁨', platform: 'YouTube · IG · TikTok', subscribers: '1.2만 / 900 / 1,562', makePrice: 70, postPrice: 30, link: 'https://www.youtube.com/@예쁘지고싶니' },
 { name: '미모지상주의', platform: 'YouTube · IG · TikTok', subscribers: '6.21만 / 2 / 2,683', makePrice: 70, postPrice: 30, link: 'https://www.youtube.com/@예쁘지고싶으면구독' },
 { name: '쇼잉', platform: 'YouTube · IG · TikTok', subscribers: '37.2만 / 6,505 / 793', makePrice: 75, postPrice: 30, link: 'https://www.youtube.com/@구독은너무좋아요' },
@@ -16,18 +16,18 @@ const CHANNEL_PRICES = [
 { name: '밈튜브', platform: 'YouTube · IG · TikTok', subscribers: '24.7만 / 2,469 / 1,735', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@mimtube777' },
 { name: '숏스커버리', platform: 'YouTube · IG', subscribers: '21.3만 / 2,077', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@숏스커버리' },
 { name: '유니랜드', platform: 'YouTube · IG · TikTok', subscribers: '17만 / 4,335 / 295', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@유니랜드' },
-{ name: '신기+탬', platform: 'YouTube · IG · TikTok', subscribers: '14.4만 / 1,759 / 2,343', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@이쁘지고싶으면구독' },
+{ name: '신기+템', platform: 'YouTube · IG · TikTok', subscribers: '14.4만 / 1,759 / 2,343', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@이쁘지고싶으면구독' },
 { name: '숏믈리에', platform: 'YouTube · IG', subscribers: '3.98만 / 419', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@숏믈리에' },
 { name: '디어랩', platform: 'YouTube · IG', subscribers: '3.85만 / 1', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독하면행운입니다' },
 { name: '숏픽', platform: 'YouTube · IG · TikTok', subscribers: '2.36만 / 148 / 55', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독을해야지' },
 { name: '두근두근', platform: 'YouTube · IG', subscribers: '1.53만 / 941', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@두근두근좋아요' },
 { name: '전국댓글자랑', platform: 'YouTube · IG', subscribers: '1.5만 / 355', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@전국댓글자랑' },
 { name: '숏플레시', platform: 'YouTube', subscribers: '3.8만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@구독짱좋아요' },
-{ name: '출석체크', platform: 'YouTube · IG', subscribers: '7.4천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@쌈플래보는채널' },
+{ name: '출석체크', platform: 'YouTube · IG', subscribers: '7.4천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@%EC%8C%A4%EB%AA%B0%EB%9E%98%EB%B3%B4%EB%8A%94%EC%B1%84%EB%84%90' },
 // 일본 채널
 { name: 'ワクワク', platform: 'YouTube · IG', subscribers: '16만 / 1만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@フォローわくわく', isJapan: true },
 { name: 'スポログ', platform: 'YouTube · IG', subscribers: '7.7만 / 1만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@スポログ', isJapan: true },
-{ name: '笑慇の一秒', platform: 'YouTube', subscribers: '3.5만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@笑慇の一秒', isJapan: true },
+{ name: '笑撃の一秒', platform: 'YouTube', subscribers: '3.5만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@%E7%AC%91%E6%92%83%E3%81%AE%E4%B8%80%E7%A7%92', isJapan: true },
 { name: 'おもしろ塾', platform: 'YouTube', subscribers: '4.5천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@おもしろ塾', isJapan: true },
 { name: '一瞬劇場', platform: 'YouTube', subscribers: '5.4천', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@一瞬劇場', isJapan: true },
 { name: '絆タイム', platform: 'YouTube', subscribers: '1만', makePrice: 65, postPrice: 30, link: 'https://www.youtube.com/@絆タイム', isJapan: true },
@@ -43,12 +43,12 @@ const japanChannels = CHANNEL_PRICES.filter(ch => ch.isJapan);
 const JP_CHANNEL_KR: Record<string, string> = {
   'ワクワク': '와쿠와쿠',
   'スポログ': '스포로그',
-  '笑慇の一秒': '에무의 일초',
-  'おもしろ塾': '오모시로쥬쿠',
-  '一瞬劇場': '잇슌게키조',
-  '絆タイム': '기즈나타이무',
+  '笑撃の一秒': '웃음의 1초',
+  'おもしろ塾': '재미학원',
+  '一瞬劇場': '순간극장',
+  '絆タイム': '인연의 시간',
   'チーズケーキ': '치즈케이크',
-  'オイシイワールド': '오이시이왈드',
+  'オイシイワールド': '맛있는 세계',
   'モグモグ': '모구모구',
   'トレ韓': '토레칸',
 };
