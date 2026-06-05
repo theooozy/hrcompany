@@ -1832,38 +1832,32 @@ style={{ minHeight: '80px', height: 'auto' }}
             <div className="px-6 py-4 border-t flex gap-3">
               <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelChannels([]); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">취소</button>
               <button disabled={addPanelLoading} onClick={async () => {
-                if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; }
-                if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; }
-                setAddPanelLoading(true); setAddPanelError('');
+if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; }
+if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; }
+setAddPanelLoading(true); setAddPanelError('');
 const channelsToSave = addPanelChannels.length > 0 ? addPanelChannels : [null];
 const insertRows = channelsToSave.map(ch => ({
-  product_name: addPanelForm.product_name,
-  brand_name: addPanelForm.brand_name || null,
-  channel: ch,
-  manager_name: addPanelForm.manager_name || null,
-  deadline: addPanelForm.deadline,
-  youtube_url: addPanelForm.youtube_url || null,
-  email: addPanelForm.email || null,
-  phone: addPanelForm.phone || null,
-  business_number: addPanelForm.business_number || null,
-  product_link: addPanelForm.product_link || null,
-  material: addPanelForm.material || null,
-  secondary_use: addPanelForm.secondary_use || null,
-  work_type: addPanelForm.work_type || null,
-  work_status: '시작 전',
-  memo: addPanelForm.memo || null
+product_name: addPanelForm.product_name,
+brand_name: addPanelForm.brand_name || null,
+channel: ch,
+manager_name: addPanelForm.manager_name || null,
+deadline: addPanelForm.deadline,
+youtube_url: addPanelForm.youtube_url || null,
+email: addPanelForm.email || null,
+phone: addPanelForm.phone || null,
+business_number: addPanelForm.business_number || null,
+product_link: addPanelForm.product_link || null,
+material: addPanelForm.material || null,
+secondary_use: addPanelForm.secondary_use || null,
+work_type: addPanelForm.work_type || null,
+work_status: '시작 전',
+memo: addPanelForm.memo || null
 }));
 const { error } = await supabase.from('schedules').insert(insertRows);
 setAddPanelLoading(false);
 if (error) { setAddPanelError('저장 실패: ' + error.message); }
-else {
-fetchManualSchedules();
-setShowAddPanel(false); setAddPanelError('');
-setAddPanelChannels([]);
-setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' });
-}
-                }
-              }} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
+else { fetchManualSchedules(); setShowAddPanel(false); setAddPanelError(''); setAddPanelChannels([]); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }
+}} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
             </div>
           </div>
         </>
