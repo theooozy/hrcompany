@@ -112,6 +112,7 @@ export default function DashboardPage() {
   const [addPanelLoading, setAddPanelLoading] = useState(false);
   const [addPanelError, setAddPanelError] = useState('');
   const [manualSchedules, setManualSchedules] = useState<any[]>([]);
+const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
   const [addPanelForm, setAddPanelForm] = useState({
     product_name: '', brand_name: '', channel: '', manager_name: '',
     deadline: '', status: '진행중', youtube_url: '',
@@ -1715,11 +1716,11 @@ style={{ minHeight: '80px', height: 'auto' }}
 
       {showAddPanel && (
         <>
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} />
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelChannels([]); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} />
           <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-bold text-slate-800">새 일정 추가</h2>
-              <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">×</button>
+              <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelChannels([]); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">×</button>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
               <div>
@@ -1731,9 +1732,18 @@ style={{ minHeight: '80px', height: 'auto' }}
                 <input value={addPanelForm.brand_name} onChange={e => setAddPanelForm(f => ({ ...f, brand_name: e.target.value }))} placeholder="브랜드명을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">채널</label>
-                <select value={addPanelForm.channel} onChange={e => setAddPanelForm(f => ({ ...f, channel: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option value="">채널 선택</option>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">채널 <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span></label>
+                <div className="flex flex-wrap gap-1 mb-2 min-h-[28px] p-2 border border-slate-300 rounded-lg bg-slate-50">
+                  {addPanelChannels.length === 0 && <span className="text-xs text-slate-400">없음</span>}
+                  {addPanelChannels.map(c => (
+                  <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  {getChLabel(c)}
+                  <button type="button" onClick={() => setAddPanelChannels(prev => prev.filter(x => x !== c))} className="text-blue-400 hover:text-red-500 font-bold ml-0.5">×</button>
+                  </span>
+                  ))}
+                </div>
+                <select onChange={(e) => { const val = e.target.value; if (!val || addPanelChannels.includes(val)) return; e.target.value=''; setAddPanelChannels(prev => [...prev, val]); }} defaultValue="" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="">추가...</option>
                   <option value="셀럽온">셀럽온</option>
                   <option value="찐예쁨">찐예쁨</option>
                   <option value="미모지상주의">미모지상주의</option>
@@ -1771,15 +1781,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                 <label className="block text-sm font-semibold text-slate-700 mb-1">날짜/시간 <span className="text-red-500">*</span></label>
                 <input type="datetime-local" value={addPanelForm.deadline} onChange={e => setAddPanelForm(f => ({ ...f, deadline: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">상태</label>
-                <select value={addPanelForm.status} onChange={e => setAddPanelForm(f => ({ ...f, status: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option value="진행중">진행중</option>
-                  <option value="완료">완료</option>
-                  <option value="대기">대기</option>
-                  <option value="보류">보류</option>
-                </select>
-              </div>
+              
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">유튜브 URL</label>
                 <input value={addPanelForm.youtube_url} onChange={e => setAddPanelForm(f => ({ ...f, youtube_url: e.target.value }))} placeholder="https://youtube.com/..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -1819,22 +1821,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                   <option value="영상">영상</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">작업 상태</label>
-                <select value={addPanelForm.work_status} onChange={e => setAddPanelForm(f => ({ ...f, work_status: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option value="">선택</option>
-                   <option value="시작 전">시작 전</option>
-                   <option value="수정 필요">수정 필요</option>
-                   <option value="진행 중">진행 중</option>
-                   <option value="콘티 컴펌 중">콘티 컴펌 중</option>
-                   <option value="영상 컴펌 중">영상 컴펌 중</option>
-                   <option value="컴펌 완료">컴펌 완료</option>
-                   <option value="영상 완료">영상 완료</option>
-                   <option value="콘티 완료">콘티 완료</option>
-                   <option value="보류">보류</option>
-                   <option value="취소">취소</option>
-                 </select>
-              </div>
+              
               
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">메모</label>
@@ -1843,35 +1830,38 @@ style={{ minHeight: '80px', height: 'auto' }}
               {addPanelError && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-600">{addPanelError}</div>}
             </div>
             <div className="px-6 py-4 border-t flex gap-3">
-              <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">취소</button>
+              <button onClick={() => { setShowAddPanel(false); setAddPanelError(''); setAddPanelChannels([]); setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' }); }} className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition">취소</button>
               <button disabled={addPanelLoading} onClick={async () => {
                 if (!addPanelForm.product_name.trim()) { setAddPanelError('제목을 입력해주세요.'); return; }
                 if (!addPanelForm.deadline) { setAddPanelError('날짜/시간을 입력해주세요.'); return; }
                 setAddPanelLoading(true); setAddPanelError('');
-                const { error } = await supabase.from('schedules').insert([{
-                  product_name: addPanelForm.product_name,
-                  brand_name: addPanelForm.brand_name || null,
-                  channel: addPanelForm.channel || null,
-                  manager_name: addPanelForm.manager_name || null,
-                  deadline: addPanelForm.deadline,
-                  status: addPanelForm.status,
-                  youtube_url: addPanelForm.youtube_url || null,
-                  email: addPanelForm.email || null,
-                  phone: addPanelForm.phone || null,
-                  business_number: addPanelForm.business_number || null,
-                  product_link: addPanelForm.product_link || null,
-                  material: addPanelForm.material || null,
-                  secondary_use: addPanelForm.secondary_use || null,
-                  work_type: addPanelForm.work_type || null,
-                  work_status: addPanelForm.work_status || null,
-                  memo: addPanelForm.memo || null
-                }]);
-                setAddPanelLoading(false);
-                if (error) { setAddPanelError('저장 실패: ' + error.message); }
-                else {
-                  fetchManualSchedules();
-                  setShowAddPanel(false); setAddPanelError('');
-                  setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' });
+const channelsToSave = addPanelChannels.length > 0 ? addPanelChannels : [null];
+const insertRows = channelsToSave.map(ch => ({
+  product_name: addPanelForm.product_name,
+  brand_name: addPanelForm.brand_name || null,
+  channel: ch,
+  manager_name: addPanelForm.manager_name || null,
+  deadline: addPanelForm.deadline,
+  youtube_url: addPanelForm.youtube_url || null,
+  email: addPanelForm.email || null,
+  phone: addPanelForm.phone || null,
+  business_number: addPanelForm.business_number || null,
+  product_link: addPanelForm.product_link || null,
+  material: addPanelForm.material || null,
+  secondary_use: addPanelForm.secondary_use || null,
+  work_type: addPanelForm.work_type || null,
+  work_status: '시작 전',
+  memo: addPanelForm.memo || null
+}));
+const { error } = await supabase.from('schedules').insert(insertRows);
+setAddPanelLoading(false);
+if (error) { setAddPanelError('저장 실패: ' + error.message); }
+else {
+fetchManualSchedules();
+setShowAddPanel(false); setAddPanelError('');
+setAddPanelChannels([]);
+setAddPanelForm({ product_name: '', brand_name: '', channel: '', manager_name: '', deadline: '', status: '진행중', youtube_url: '', email: '', phone: '', business_number: '', product_link: '', material: '', secondary_use: '', work_type: '콘티', work_status: '', memo: '' });
+}
                 }
               }} className="flex-1 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">{addPanelLoading ? '저장 중...' : '저장'}</button>
             </div>
