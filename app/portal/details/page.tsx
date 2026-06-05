@@ -254,7 +254,7 @@ className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all $
 </div>
 <div>
 <div className="flex items-center gap-2 mb-2">
-<span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">🇯🇵 일본 채널</span>
+<span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full">일본 채널</span>
 </div>
 <div className="flex flex-wrap gap-2">
 {JAPAN_CHANNELS.map(ch => (
