@@ -97,7 +97,30 @@ export default function DashboardPage() {
   const [selectedRowMeta, setSelectedRowMeta] = useState<{ channel: string; conceptName: string } | null>(null);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [telegramTestResult, setTelegramTestResult] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
+
+  const handleTelegramTest = async () => {
+    setTelegramTestResult(null);
+    try {
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'test', data: {} }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        setTelegramTestResult('success');
+      } else {
+        setTelegramTestResult('error: ' + (result.error || '알 수 없는 오류'));
+        console.error('[Telegram Test]', result.error);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '알 수 없는 오류';
+      setTelegramTestResult('error: ' + msg);
+      console.error('[Telegram Test] error:', err);
+    }
+  };
   const [expanded, setExpanded] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDetail, setSelectedDetail] = useState<Inquiry | null>(null);
@@ -1099,6 +1122,17 @@ style={{ minHeight: '80px', height: 'auto' }}
           <div className="mb-6 flex items-center justify-between">
             <div><h1 className="text-2xl font-bold text-slate-800 mb-1">광고 문의</h1><p className="text-slate-500 text-sm">홈페이지에서 접수된 브랜드 광고 문의 목록입니다.</p></div>
             <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
+          <button
+            onClick={handleTelegramTest}
+            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition flex items-center gap-1.5"
+          >
+            📲 텔레그램 테스트
+          </button>
+          {telegramTestResult && (
+            <span className={`text-xs font-medium ${telegramTestResult === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {telegramTestResult === 'success' ? '✅ 전송 성공!' : '❌ ' + telegramTestResult}
+            </span>
+          )}
           </div>
           <div className="flex gap-2 border-b border-slate-200 mb-6">
             {([
