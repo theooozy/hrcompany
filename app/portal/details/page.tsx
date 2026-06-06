@@ -134,6 +134,8 @@ return;
 
 setLoading(false);
 setSubmitted(true);
+      // テ텔레그램 승인 목록 알림 전송
+      fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'approval', data: { brand: session?.name || '-', channel: (form.preferred_channels && form.preferred_channels.length > 0) ? form.preferred_channels.join(', ') : '-', requester: session?.email || '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] approval error:', err));
 } catch (err: unknown) {
 const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
 setSubmitError(msg);
