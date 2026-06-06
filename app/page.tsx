@@ -38,6 +38,7 @@ export default function HomePage() {
 
       if (error) throw new Error(error.message);
       setSubmitted(true);
+      fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'inquiry', data: { brand: formData.brand, name: formData.name, phone: formData.phone || formData.email, preferred_channel: '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] error:', err));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
       alert('제출 오류: ' + msg);
