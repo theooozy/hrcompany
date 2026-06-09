@@ -245,7 +245,7 @@ className={ic}
 </div>
 
 <div>
-<label className={lc}>선호하는 채널 <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span></label>
+<label className={lc}>선호하는 채널 <span className="text-red-500">*</span> <span className="text-xs font-normal text-slate-400">(복수 선택 가능)</span></label>
 <div className="mb-4">
 <div className="flex items-center gap-2 mb-2">
 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">🇰🇷 국내 채널</span>
@@ -281,7 +281,7 @@ className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all $
 </div>
 
 <div>
-<label className={lc}>희망 영상 컨셉</label>
+<label className={lc}> <span className="text-red-500">*</span>희망 영상 컨셉</label>
 <textarea name="video_concept" value={form.video_concept} onChange={handleChange} rows={3} placeholder="원하시는 영상 컨셉을 자유롭게 적어주세요" className={ic + ' resize-none'} />
 </div>
 
