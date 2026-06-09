@@ -281,7 +281,7 @@ className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all $
 </div>
 
 <div>
-<label className={lc}> <span className="text-red-500">*</span>희망 영상 컨셉</label>
+<label className={lc}>희망 영상 콘셉 <span className="text-red-500">*</span></label>
 <textarea name="video_concept" value={form.video_concept} onChange={handleChange} rows={3} placeholder="원하시는 영상 컨셉을 자유롭게 적어주세요" className={ic + ' resize-none'} />
 </div>
 
