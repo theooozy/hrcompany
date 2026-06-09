@@ -703,31 +703,6 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
   };
 
   // Editable detail panel component
-  const DetailEditablePanel = ({ detail, rowMeta, onClose, onDelete }: {
-detail: Inquiry;
-rowMeta: { channel: string; conceptName: string } | null;
-onClose: () => void;
-onDelete: () => void;
-}) => {
-
-const isSchedule = detail._source === 'schedule';
-const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
-const [statusOpen, setStatusOpen] = useState(false);
-const [channelOpen, setChannelOpen] = useState(false);
-const statusRef = useRef<HTMLDivElement>(null);
-const channelRef = useRef<HTMLDivElement>(null);
-
-const [editBrand, setEditBrand] = useState(detail.brand || '');
-const [editChannels, setEditChannels] = useState(detail.channels || '');
-const [editUpload, setEditUpload] = useState(detail.youtube_url || '');
-const deadlineRaw = isSchedule ? (detail.deadline || '') : (detail.scheduled_date || detail.deadline || '');
-const toDatetimeLocal = (v: string) => {
-if (!v) return '';
-if (v.includes('T')) return v.substring(0, 16);
-if (v.length === 10) return v + 'T00:00';
-return v.substring(0, 16);
-};
-
 const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string) => {
   const inq = inquiries.find(i => i.id === inquiryId);
   if (!inq) return;
@@ -751,6 +726,31 @@ const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string
   setSelectedRowMeta(null);
   setCalendarDetail(null);
   setCalendarDetailRowMeta(null);
+};
+
+  const DetailEditablePanel = ({ detail, rowMeta, onClose, onDelete }: {
+detail: Inquiry;
+rowMeta: { channel: string; conceptName: string } | null;
+onClose: () => void;
+onDelete: () => void;
+}) => {
+
+const isSchedule = detail._source === 'schedule';
+const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
+const [statusOpen, setStatusOpen] = useState(false);
+const [channelOpen, setChannelOpen] = useState(false);
+const statusRef = useRef<HTMLDivElement>(null);
+const channelRef = useRef<HTMLDivElement>(null);
+
+const [editBrand, setEditBrand] = useState(detail.brand || '');
+const [editChannels, setEditChannels] = useState(detail.channels || '');
+const [editUpload, setEditUpload] = useState(detail.youtube_url || '');
+const deadlineRaw = isSchedule ? (detail.deadline || '') : (detail.scheduled_date || detail.deadline || '');
+const toDatetimeLocal = (v: string) => {
+if (!v) return '';
+if (v.includes('T')) return v.substring(0, 16);
+if (v.length === 10) return v + 'T00:00';
+return v.substring(0, 16);
 };
 const [editDeadline, setEditDeadline] = useState(toDatetimeLocal(deadlineRaw));
 const [editMaterial, setEditMaterial] = useState(detail.material || '');
