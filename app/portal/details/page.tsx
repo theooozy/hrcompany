@@ -22,7 +22,7 @@ const JAPAN_CHANNELS = [
 '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
 ];
 
-type Session = { id: string; name: string; email: string };
+type Session = { id: string; name: string; email: string; brand?: string };
 
 const formatBusinessNumber = (value: string): string => {
 const digits = value.replace(/[^0-9]/g, '');
@@ -94,6 +94,7 @@ const insertPayload: Record<string, unknown> = {
         name: session.name,
         email: session.email,
         type: 'ad',
+        brand: session.brand || null,
         status: 'pending',
         business_number: form.business_number || null,
         upload_date: form.upload_date || null,
@@ -202,12 +203,12 @@ className={ic}
 </div>
 
 <div>
-<label className={lc}>업로드 일시</label>
+<label className={lc}>업로드 일시 <span className="text-red-500">*</span></label>
 <input type="date" name="upload_date" value={form.upload_date} onChange={handleChange} className={ic} />
 </div>
 
 <div>
-<label className={lc}>소재 정보</label>
+<label className={lc}>소재 정보 <span className="text-red-500">*</span></label>
 <label className="flex items-center gap-2 mb-2 cursor-pointer">
 <input type="checkbox" name="material_none" checked={form.material_none} onChange={handleChange} className="w-4 h-4" />
 <span className="text-sm text-slate-500">없음 (별도 재전달 예정)</span>
@@ -218,7 +219,7 @@ className={ic}
 </div>
 
 <div>
-<label className={lc}>제품 링크</label>
+<label className={lc}>제품 링크 <span className="text-red-500">*</span></label>
 <label className="flex items-center gap-2 mb-2 cursor-pointer">
 <input type="checkbox" name="product_link_none" checked={form.product_link_none} onChange={handleChange} className="w-4 h-4" />
 <span className="text-sm text-slate-500">없음</span>
@@ -229,7 +230,7 @@ className={ic}
 </div>
 
 <div>
-<label className={lc}>추가 정보 (2차 활용 여부)</label>
+<label className={lc}>추가 정보 (2차 활용 여부) <span className="text-red-500">*</span></label>
 <div className="space-y-2">
 {SECONDARY_USE_OPTIONS.map(opt => (
 <label key={opt} className="flex items-center gap-2 cursor-pointer">
