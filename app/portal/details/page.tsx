@@ -100,6 +100,14 @@ return;
 setLoading(true);
 setSubmitError('');
 
+  // Validation
+  if (!form.upload_date) { setSubmitError('업로드 일시를 입력해주세요.'); setLoading(false); return; }
+  if (!form.material_none && !form.material.trim()) { setSubmitError('소재 정보를 입력하거나 없음을 체크해주세요.'); setLoading(false); return; }
+  if (!form.product_link_none && !form.product_link.trim()) { setSubmitError('제품 링크를 입력하거나 없음을 체크해주세요.'); setLoading(false); return; }
+  if (!form.secondary_use) { setSubmitError('추가 정보 (2차 활용 여부)를 선택해주세요.'); setLoading(false); return; }
+  if (preferredChannels.length === 0) { setSubmitError('선호하는 채널을 최소 1개 이상 선택해주세요.'); setLoading(false); return; }
+  if (!form.video_concept.trim()) { setSubmitError('희망 영상 콘셉을 입력해주세요.'); setLoading(false); return; }
+
 const secondaryUse = form.secondary_use === '기타'
 ? (form.secondary_use_custom || '기타')
 : form.secondary_use;
@@ -154,7 +162,7 @@ setSubmitted(true);
         alert('세부 정보가 성공적으로 접수되었습니다! 추가 제출도 가능합니다.');
         setSubmitted(false);
       // テ텔레그램 승인 목록 알림 전송
-      fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'approval', data: { brand: session?.name || '-', channel: (form.preferred_channels && form.preferred_channels.length > 0) ? form.preferred_channels.join(', ') : '-', requester: session?.email || '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] approval error:', err));
+      fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'approval', data: { brand: session?.name || '-', channel: (preferredChannels.length > 0) ? preferredChannels.join(', ') : '-', requester: session?.email || '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] approval error:', err));
 } catch (err: unknown) {
 const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
 setSubmitError(msg);
