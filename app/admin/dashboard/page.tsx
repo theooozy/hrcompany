@@ -709,6 +709,24 @@ rowMeta: { channel: string; conceptName: string } | null;
 onClose: () => void;
 onDelete: () => void;
 }) => {
+const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string) => {
+  const inq = inquiries.find(i => i.id === inquiryId);
+  if (!inq) return;
+  const channels = (inq.channels || '').split(',').map((c: string) => c.trim()).filter((c: string) => c && c !== channel);
+  if (channels.length === 0) {
+    await handleDelete(inquiryId, '표 보기');
+  } else {
+    const newChannels = channels.join(',');
+    const { error } = await supabase.from('inquiries').update({ channels: newChannels }).eq('id', inquiryId);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    fetchInquiries();
+    setSelectedDetail(null);
+    setSelectedRowMeta(null);
+    setCalendarDetail(null);
+    setCalendarDetailRowMeta(null);
+  }
+};
+
 const isSchedule = detail._source === 'schedule';
 const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
 const [statusOpen, setStatusOpen] = useState(false);
@@ -1093,10 +1111,10 @@ style={{ minHeight: '80px', height: 'auto' }}
     <div className="min-h-screen bg-slate-50 flex" onClick={() => { setStatusDropdown(null); }}>
       <aside className="w-56 bg-white border-r border-slate-200 flex flex-col fixed h-full z-10">
         <div className="p-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
+          <a href="/" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center"><span className="text-white font-bold text-xs">HR</span></div>
             <span className="font-bold text-slate-800 text-sm">관리자 대시보드</span>
-          </div>
+          </a>
         </div>
         <nav className="flex-1 p-3 space-y-1 flex flex-col">
           <button onClick={() => setActiveMenu('inquiries')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeMenu === 'inquiries' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
@@ -1131,25 +1149,14 @@ style={{ minHeight: '80px', height: 'auto' }}
         </div>
       </aside>
 
-      <main className="flex-1 ml-56 p-8">
+      <main className="flex-1 ml-56 p-8 min-w-0 overflow-x-auto">
 
       {activeMenu === 'inquiries' && (
         <div>
           <div className="mb-6 flex items-center justify-between">
             <div><h1 className="text-2xl font-bold text-slate-800 mb-1">광고 문의</h1><p className="text-slate-500 text-sm">홈페이지에서 접수된 브랜드 광고 문의 목록입니다.</p></div>
             <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
-          <button
-            onClick={handleTelegramTest}
-            className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition flex items-center gap-1.5"
-          >
-            📲 텔레그램 테스트
-          </button>
-          {telegramTestResult && (
-            <span className={`text-xs font-medium ${telegramTestResult === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-              {telegramTestResult === 'success' ? '✅ 전송 성공!' : '❌ ' + telegramTestResult}
-            </span>
-          )}
-          </div>
+                    </div>
           <div className="flex gap-2 border-b border-slate-200 mb-6">
             {([
               { key: 'all', label: '전체' },
@@ -1282,7 +1289,7 @@ style={{ minHeight: '80px', height: 'auto' }}
               .filter(i => approvalTab === 'all' ? (!i.status || i.status === 'pending') : i.status === approvalTab)
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map(inq => (
-                <div key={inq.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
+                <div key={inq.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-start gap-4 flex-wrap min-w-0 overflow-hidden">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-bold text-slate-800 truncate">{inq.brand || '브랜드 미입력'}</span>
@@ -1421,7 +1428,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                     if (selectedDetail._source === 'schedule') {
                       handleScheduleDelete(selectedDetail._scheduleId || selectedDetail.id);
                     } else {
-                      handleDelete(selectedDetail.id, '표 보기');
+                      handleRemoveChannelFromInquiry(selectedDetail.id, selectedRowMeta?.channel || '');
                     }
                     setSelectedDetail(null);
                     setSelectedRowMeta(null);
@@ -1745,7 +1752,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                 if (calendarDetail._source === 'schedule') {
                   handleScheduleDelete(calendarDetail._scheduleId || calendarDetail.id);
                 } else {
-                  handleDelete(calendarDetail.id, '캘린더');
+                  handleRemoveChannelFromInquiry(calendarDetail.id, calendarDetailRowMeta?.channel || calendarDetail._calendarChannel as string || '');
                 }
                 setCalendarDetail(null);
                 setCalendarDetailRowMeta(null);
