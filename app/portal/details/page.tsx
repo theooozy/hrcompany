@@ -281,7 +281,7 @@ className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all $
 {JAPAN_CHANNELS.map(ch => (
 <button key={ch} type="button" onClick={() => handleChannelToggle(ch)}
 className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${preferredChannels.includes(ch) ? 'bg-red-500 text-white border-red-500' : 'bg-white text-slate-600 border-slate-200 hover:border-red-400 hover:text-red-500'}`}>
-{ch}
+{getJpChLabel(ch)}
 </button>
 ))}
 </div>
