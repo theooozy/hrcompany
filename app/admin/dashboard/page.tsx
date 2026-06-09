@@ -1089,7 +1089,7 @@ style={{ minHeight: '80px', height: 'auto' }}
     });
     const scheduleRows: { inq: any; channel: string; conceptName: string; rowKey: string }[] = [];
     const filteredSchedules = manualSchedules.filter(s => !selectedCalendarDate || (s.deadline && s.deadline.startsWith(selectedCalendarDate)));
-    filteredSchedules.forEach((s) => {
+    filteredSchedules.forEach((s, sIdx) => {
       scheduleRows.push({
         inq: {
           ...s,
@@ -1106,9 +1106,10 @@ style={{ minHeight: '80px', height: 'auto' }}
           memo: s.memo || null,
           _source: 'schedule',
           _scheduleId: s.id,
+          _productName: s.product_name || '',
         },
         channel: s.channel || '-',
-        conceptName: s.product_name || s.brand_name || '-',
+        conceptName: '콘셉' + (sIdx + 1),
         rowKey: 'schedule__' + s.id,
       });
     });
@@ -1398,7 +1399,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           <div className="font-medium text-slate-700">{ch}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">{row.conceptName}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{row.inq._productName || row.conceptName}</div>
                         </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.length > 10 ? deadlineStr.substring(0, 16).replace('T', ' ') : deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
