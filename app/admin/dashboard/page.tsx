@@ -537,11 +537,19 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
     return { firstDay: new Date(y, m, 1).getDay(), daysInMonth: new Date(y, m + 1, 0).getDate(), year: y, month: m };
   };
 
-  const getApprovedForDate = (dateStr: string) => [
-    ...inquiries.filter(i => i.status === 'approved' && i.scheduled_date && (i.scheduled_date === dateStr || i.scheduled_date.startsWith(dateStr))).map(i => ({ ...i, _source: 'inquiry' })),
-    ...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, brand_name: s.brand_name, brand: s.brand_name || s.product_name, _source: 'schedule' }))
-  ];
-  const formatDate = (dateStr: string) => { if (!dateStr) return ''; const d = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T00:00:00'); if (isNaN(d.getTime())) return dateStr; return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
+  const getApprovedForDate = (dateStr: string): any[] => {
+    const result: any[] = [];
+    // 승인된 문의에서 채널별로 분리
+    inquiries.filter(i => i.status === 'approved' && i.scheduled_date && (i.scheduled_date === dateStr || i.scheduled_date.startsWith(dateStr))).forEach(inq => {
+      const channels = inq.channels ? inq.channels.split(',').map((c: string) => c.trim()).filter(Boolean) : ['-'];
+      channels.forEach((ch: string, idx: number) => {
+        result.push({ ...inq, _calendarChannel: ch, _conceptIndex: idx + 1, _eventKey: inq.id + '__ch__' + ch });
+      });
+    });
+    // 수동 일정
+    result.push(...manualSchedules.filter(s => s.deadline && s.deadline.startsWith(dateStr)).map(s => ({ ...s, _calendarChannel: s.channel || '-', _conceptIndex: 0, _eventKey: 'schedule__' + s.id })));
+    return result;
+  };  const formatDate = (dateStr: string) => { if (!dateStr) return ''; const d = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T00:00:00'); if (isNaN(d.getTime())) return dateStr; return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
   const formatDateTime = (dateStr: string) => { if (!dateStr) return ''; return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); };
 
   const statusBadge = (status: string) => {
@@ -1070,9 +1078,18 @@ style={{ minHeight: '80px', height: 'auto' }}
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
     if (!value) return null;
-    return <div className="flex gap-2"><span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">{label}</span><span className="text-xs text-slate-700 whitespace-pre-wrap">{value}</span></div>;
+    const isUrl = typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
+    return (
+      <div className="flex gap-2 min-w-0">
+        <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">{label}</span>
+        <span className="text-xs text-slate-700 break-all min-w-0 overflow-hidden flex-1">
+          {isUrl ? (
+            <a href={value} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">{value}</a>
+          ) : value}
+        </span>
+      </div>
+    );
   };
-
   return (
     <div className="min-h-screen bg-slate-50 flex" onClick={() => { setStatusDropdown(null); }}>
       <aside className="w-56 bg-white border-r border-slate-200 flex flex-col fixed h-full z-10">
@@ -1689,14 +1706,14 @@ style={{ minHeight: '80px', height: 'auto' }}
                               const evWt = ev.work_type || '콘티';
                               const evSa = ((ev.storyboard_assignees) || {}) as Record<string,string>;
                               const evVa = ((ev.video_assignees) || {}) as Record<string,string>;
-                              const evCh = (ev.channels || (ev as any).channel || '').split(',')[0].trim();
+                              const evCh = (ev as any)._calendarChannel || (ev.channels || (ev as any).channel || '').split(',')[0].trim();
                               const evAssignee = evWt === '영상' ? (evVa[evCh] || ev.name || '') : (evSa[evCh] || ev.name || '');
                               const evWs = ev.work_status || '시작 전';
                               const evWsSt = getWorkStatusStyle(evWs);
                               const evDeadline = ev.deadline || ev.scheduled_date || '';
                               const evTime = evDeadline && evDeadline.includes('T') ? evDeadline.substring(11, 16) : '';
                               return (
-                              <div key={ev.id} onClick={(e) => { e.stopPropagation(); setCalendarDetail(ev as any); setCalendarDetailRowMeta(null); }} className="text-xs px-2 py-1.5 bg-white border border-blue-100 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all shadow-sm mb-1" title={(ev.brand||'') + ' - ' + evWs}>
+                              <div key={(ev as any)._eventKey || ev.id} onClick={(e) => { e.stopPropagation(); setCalendarDetail(ev as any); setCalendarDetailRowMeta(null); }} className="text-xs px-2 py-1.5 bg-white border border-blue-100 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all shadow-sm mb-1" title={(ev.brand||'') + ' - ' + evWs}>
                                 <div className="flex items-center justify-between">
                                   <span className="font-bold text-slate-800 truncate text-[11px]">{ev.brand || '-'}</span>
                                   {evTime && <span className="text-[9px] text-slate-400 shrink-0 ml-1">{evTime}</span>}
