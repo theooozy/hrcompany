@@ -79,12 +79,12 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <header className="bg-white/80 backdrop-blur-sm border-b border-blue-100 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-md">
               <span className="text-white font-bold text-sm">HR</span>
             </div>
             <span className="text-xl font-bold text-slate-800">HR Company</span>
-          </div>
+          </a>
           <div className="flex items-center gap-2"><a href="/portal/login" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50">문의자 로그인</a><a href="/admin/login" className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors px-4 py-2 rounded-lg hover:bg-slate-100">관리자 로그인</a></div>
         </div>
       </header>
