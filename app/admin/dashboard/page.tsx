@@ -709,23 +709,6 @@ rowMeta: { channel: string; conceptName: string } | null;
 onClose: () => void;
 onDelete: () => void;
 }) => {
-const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string) => {
-  const inq = inquiries.find(i => i.id === inquiryId);
-  if (!inq) return;
-  const channels = (inq.channels || '').split(',').map((c: string) => c.trim()).filter((c: string) => c && c !== channel);
-  if (channels.length === 0) {
-    await handleDelete(inquiryId, '표 보기');
-  } else {
-    const newChannels = channels.join(',');
-    const { error } = await supabase.from('inquiries').update({ channels: newChannels }).eq('id', inquiryId);
-    if (error) { alert('삭제 실패: ' + error.message); return; }
-    fetchInquiries();
-    setSelectedDetail(null);
-    setSelectedRowMeta(null);
-    setCalendarDetail(null);
-    setCalendarDetailRowMeta(null);
-  }
-};
 
 const isSchedule = detail._source === 'schedule';
 const entityId = isSchedule ? (detail._scheduleId || detail.id) : detail.id;
@@ -743,6 +726,31 @@ if (!v) return '';
 if (v.includes('T')) return v.substring(0, 16);
 if (v.length === 10) return v + 'T00:00';
 return v.substring(0, 16);
+};
+
+const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string) => {
+  const inq = inquiries.find(i => i.id === inquiryId);
+  if (!inq) return;
+  const channels = (inq.channels || '').split(',').map((c: string) => c.trim()).filter((c: string) => Boolean(c) && c !== channel);
+  if (!window.confirm('선택한 항목만 삭제하시겠습니까?')) return;
+  if (channels.length === 0) {
+    // Last channel: soft-delete the entire inquiry -> goes to trash
+    const now = new Date().toISOString();
+    const { error, data } = await supabase.from('inquiries').update({ deleted: true, deleted_at: now, deleted_from: '표 보기' }).eq('id', inquiryId).select();
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    if (!data || data.length === 0) { alert('삭제할 항목을 찾지 못했습니다.'); return; }
+  } else {
+    // Multiple channels: remove this channel from the list
+    const newChannels = channels.join(',');
+    const { error } = await supabase.from('inquiries').update({ channels: newChannels }).eq('id', inquiryId);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+  }
+  fetchInquiries();
+  fetchTrash();
+  setSelectedDetail(null);
+  setSelectedRowMeta(null);
+  setCalendarDetail(null);
+  setCalendarDetailRowMeta(null);
 };
 const [editDeadline, setEditDeadline] = useState(toDatetimeLocal(deadlineRaw));
 const [editMaterial, setEditMaterial] = useState(detail.material || '');
