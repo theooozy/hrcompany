@@ -23,7 +23,7 @@ export default function PortalLoginPage() {
     try {
       const { data, error } = await supabase
         .from('inquiries')
-        .select('id, name, email, status')
+        .select('id, name, email, brand, status')
         .eq('name', name.trim())
         .eq('email', email.trim())
         .limit(1);
@@ -45,7 +45,7 @@ export default function PortalLoginPage() {
       }
 
       const inquiry = data[0];
-      localStorage.setItem('portal_session', JSON.stringify({ name: inquiry.name, email: inquiry.email }));
+      localStorage.setItem('portal_session', JSON.stringify({ name: inquiry.name, email: inquiry.email, brand: inquiry.brand || '' }));
       router.push('/portal');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
