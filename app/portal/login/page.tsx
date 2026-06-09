@@ -45,7 +45,7 @@ export default function PortalLoginPage() {
       }
 
       const inquiry = data[0];
-      localStorage.setItem('portal_session', JSON.stringify({ id: inquiry.id, name: inquiry.name, email: inquiry.email }));
+      localStorage.setItem('portal_session', JSON.stringify({ name: inquiry.name, email: inquiry.email }));
       router.push('/portal');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
