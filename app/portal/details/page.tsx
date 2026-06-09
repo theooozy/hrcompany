@@ -17,6 +17,20 @@ const DOMESTIC_CHANNELS = [
 '디어랩', '숏픽', '두근두근', '전국댓글자랑', '숏플레시', '출석체크',
 ];
 
+const JP_CHANNEL_KR: Record<string, string> = {
+  'ワクワク': '와쿨와쿨',
+  'スポログ': '스포로그',
+  '笑撃の一秒': '웃음의 1초',
+  'おもし로塩': '재미학원',
+  '一瞬劇場': '순간극장',
+  '絆タイム': '인연의 시간',
+  'チーズケーキ': '치즈케이크',
+  'オイシイワールド': '맛있는 세계',
+  'モグモグ': '모구모구',
+  'トレ韓': '토레칸',
+};
+const getJpChLabel = (ch: string): string => JP_CHANNEL_KR[ch] ? ch + ' (' + JP_CHANNEL_KR[ch] + ')' : ch;
+
 const JAPAN_CHANNELS = [
 'ワクワク', 'スポログ', '笑撃の一秒', 'おもしろ塾', '一瞬劇場',
 '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
@@ -275,7 +289,7 @@ className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all $
 {preferredChannels.length > 0 && (
 <div className="mt-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
 <span className="text-xs text-slate-500">선택된 채널: </span>
-<span className="text-xs font-semibold text-slate-700">{preferredChannels.join(', ')}</span>
+<span className="text-xs font-semibold text-slate-700">{preferredChannels.map(ch => getJpChLabel(ch)).join(', ')}</span>
 </div>
 )}
 </div>
