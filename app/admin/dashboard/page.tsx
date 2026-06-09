@@ -960,7 +960,6 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 </div>
 } />
 
-{(detail as any).preferred_channels && <InfoLine label="선호 채널" value={<span className="text-sm">{(detail as any).preferred_channels}</span>} />}
 {detail.video_concept && <InfoLine label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
 {detail.extra && <InfoLine label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
 
@@ -1204,7 +1203,6 @@ style={{ minHeight: '80px', height: 'auto' }}
                       <InfoRow label="제품 링크" value={inq.product_link} />
                       <InfoRow label="활용 소재" value={inq.material} />
                       <InfoRow label="2차 활용" value={inq.secondary_use} />
-                      <InfoRow label="선호 채널" value={(inq as any).preferred_channels} />
                       <InfoRow label="영상 컨셉" value={inq.video_concept} />
                       <InfoRow label="기타" value={inq.extra} />
                       <InfoRow label="담당자" value={inq.name + (inq.phone ? ' · ' + inq.phone : '')} />
@@ -1232,15 +1230,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                       {(inq.ad_review_status === 'approved' || inq.ad_review_status === 'rejected') && (
                         <button onClick={() => handleAdReview(inq.id, 'pending')} className="ml-auto px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">되돌리기</button>
                       )}
-                    </div>
-                    {inq.status === 'pending' && (
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <input type="date" value={selectedDates[inq.id] || ''} onChange={(e) => setSelectedDates({ ...selectedDates, [inq.id]: e.target.value })} className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                        <button onClick={() => handleApprove(inq)} className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm">✓ 날짜 선택 후 승인</button>
-                        <button onClick={() => { if (confirm('거절하시겠습니까?')) handleReject(inq.id); }} className="px-5 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-semibold">✕ 거절</button>
-                      </div>
-                    )}
-                    {(inq.work_status === '컴펌 완료') && (
+                    </div>                    {(inq.work_status === '컴펌 완료') && (
                       <div className="p-4 bg-green-50 rounded-xl border border-green-100">
                         <p className="text-xs font-semibold text-green-700 mb-2">▶ 유튜브 링크 등록</p>
                         {inq.youtube_url && <div className="mb-2"><a href={inq.youtube_url} target="_blank" rel="noreferrer" className="text-red-500 text-sm underline">{inq.youtube_url}</a></div>}
