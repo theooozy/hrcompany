@@ -27,6 +27,20 @@ export default function HomePage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // 중복 문의 체크: email+name+phone+brand 모두 같은 경우 차단
+      const { data: existingData } = await supabase
+        .from('inquiries')
+        .select('id')
+        .eq('email', formData.email.trim())
+        .eq('name', formData.name.trim())
+        .eq('phone', formData.phone.trim())
+        .eq('brand', formData.brand.trim())
+        .limit(1);
+      if (existingData && existingData.length > 0) {
+        setLoading(false);
+        alert('이미 접수된 문의입니다. 동일한 이메일, 이름, 연락처, 브랜드로 이미 등록된 문의가 있습니다.');
+        return;
+      }
       const { error } = await supabase.from('inquiries').insert([{
         brand: formData.brand,
         name: formData.name,
