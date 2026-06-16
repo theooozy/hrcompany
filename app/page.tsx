@@ -8,6 +8,19 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const formatPhone = (value: string): string => {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.startsWith('02')) {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return digits.substring(0, 2) + '-' + digits.substring(2);
+    if (digits.length <= 9) return digits.substring(0, 2) + '-' + digits.substring(2, 5) + '-' + digits.substring(5, 9);
+    return digits.substring(0, 2) + '-' + digits.substring(2, 6) + '-' + digits.substring(6, 10);
+  }
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return digits.substring(0, 3) + '-' + digits.substring(3);
+  return digits.substring(0, 3) + '-' + digits.substring(3, 7) + '-' + digits.substring(7, 11);
+};
+
 export default function HomePage() {
   const [formData, setFormData] = useState({
     brand: '',
@@ -21,6 +34,11 @@ export default function HomePage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const target = e.target as HTMLInputElement;
     setFormData(prev => ({ ...prev, [target.name]: target.value }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setFormData(prev => ({ ...prev, phone: formatted }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,7 +187,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <label className={lc}>연락처</label>
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="010-0000-0000" className={ic} />
+                    <input type="text" inputMode="numeric" name="phone" value={formData.phone} onChange={handlePhoneChange} placeholder="010-0000-0000" maxLength={13} className={ic} />
                   </div>
                 </div>
               </div>
