@@ -8,8 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-
-const ASSIGNEE_OPTIONS = ['임상이', '이보배'];
+const ASSIGNEE_OPTIONS = ['임상이', '이보배']
 
 const WORK_STATUSES = [
   { label: '시작 전', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' },
@@ -845,7 +844,6 @@ onClick={(e) => e.stopPropagation()}
 <div className="flex items-start justify-between mb-3">
 <h2 className="text-xl font-bold text-slate-800 leading-tight">
 {editBrand || detail.brand || '(브랜드 없음)'}
-{rowMeta ? <span className="text-slate-400 font-normal"> / {rowMeta.conceptName}</span> : null}
 </h2>
 <div className="flex items-center gap-1 shrink-0 ml-2">
 <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="삭제">
@@ -1424,7 +1422,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           <div className="font-medium text-slate-700">{ch}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">{row.inq._productName || row.conceptName}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{row.inq._productName}</div>
                         </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.length > 10 ? deadlineStr.substring(0, 16).replace('T', ' ') : deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
