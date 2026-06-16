@@ -87,7 +87,7 @@ export default function DashboardPage() {
   const [currentRole, setCurrentRole] = useState<string>('worker');
   const [staffList, setStaffList] = useState<Array<{ user_email: string; role: string }>>([]);
   const [newStaffEmail, setNewStaffEmail] = useState<string>('');
-  const [channelSettings, setChannelSettings] = useState<Record<string, { person_name: string; tts_info: string }>>({});
+  const [channelSettings, setChannelSettings] = useState<Record<string, { person_name: string; tts_info: string; price?: string }>>({});
   const [newChannelName, setNewChannelName] = useState('');
   const [approvalTab, setApprovalTab] = useState<'all' | 'approved' | 'rejected'>('all');
   const [inquiryTab, setInquiryTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -438,9 +438,9 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
     fetchStaff();
   };
   const fetchChannelSettings = async () => {
-    const { data } = await supabase.from('channel_settings').select('channel, person_name, tts_info');
+    const { data } = await supabase.from('channel_settings').select('channel, person_name, tts_info, price');
     const map: Record<string, { person_name: string; tts_info: string }> = {};
-    (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '' }; });
+    (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '', price: r.price || '' }; });
     setChannelSettings(map);
     return map;
   };
@@ -451,7 +451,7 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
     'ワクワク', 'スポログ', '笑撃の一秒', 'おもしろ塾', '一瞬劇場',
     '絆タイム', 'チーズケーキ', 'オイシイワールド', 'モグモグ', 'トレ韓',
   ];
-  const initMissingChannels = async (existingMap: Record<string, { person_name: string; tts_info: string }>) => {
+  const initMissingChannels = async (existingMap: Record<string, { person_name: string; tts_info: string; price?: string }>) => {
     const missing = ALL_DEFAULT_CHANNELS.filter(ch => !existingMap[ch]);
     if (missing.length === 0) return;
     await supabase.from('channel_settings').upsert(
@@ -459,8 +459,8 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
       { onConflict: 'channel', ignoreDuplicates: true }
     );
     const { data } = await supabase.from('channel_settings').select('channel, person_name, tts_info');
-    const map2: Record<string, { person_name: string; tts_info: string }> = {};
-    (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map2[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '' }; });
+    const map2: Record<string, { person_name: string; tts_info: string; price?: string }> = {};
+    (data || []).forEach((r: { channel: string; person_name: string; tts_info: string }) => { map2[r.channel] = { person_name: r.person_name || '', tts_info: r.tts_info || '', price: r.price || '' }; });
     setChannelSettings(map2);
   };
   const handleAddChannel = async () => {
@@ -479,10 +479,10 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
     if (error) { alert('오류: ' + error.message); return; }
     setChannelSettings(prev => { const next = { ...prev }; delete next[channel]; return next; });
   };
-  const handleSaveChannelSetting = async (channel: string, person_name: string, tts_info: string) => {
-    const { error } = await supabase.from('channel_settings').upsert({ channel, person_name, tts_info }, { onConflict: 'channel' });
+  const handleSaveChannelSetting = async (channel: string, person_name: string, tts_info: string, price: string = '') => {
+    const { error } = await supabase.from('channel_settings').upsert({ channel, person_name, tts_info, price }, { onConflict: 'channel' });
     if (error) { alert('오류: ' + error.message); return; }
-    setChannelSettings(prev => ({ ...prev, [channel]: { person_name, tts_info } }));
+    setChannelSettings(prev => ({ ...prev, [channel]: { person_name, tts_info, price } }));
   };
   const canDeletePermanent = () => currentRole === 'master' || currentRole === 'admin';
   const handleEmptyTrash = async () => {
@@ -1003,10 +1003,10 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 {detail.video_concept && <InfoLine label="희망 컨셉" value={<span className="text-sm whitespace-pre-wrap">{detail.video_concept}</span>} />}
 {detail.extra && <InfoLine label="기타" value={<span className="text-sm whitespace-pre-wrap">{detail.extra}</span>} />}
 
-{/* 문의자 정보 */}
+{/* 고객 정보 */}
 <div className="pt-4">
 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-문의자 정보 {(currentRole === 'master' || currentRole === 'admin') ? '(관리자 수정 가능)' : '(수정 불가)'}
+고객 정보 {(currentRole === 'master' || currentRole === 'admin') ? '(관리자 수정 가능)' : '(수정 불가)'}
 </p>
 <div className="bg-slate-50 rounded-xl overflow-hidden">
 {(currentRole === 'master' || currentRole === 'admin') ? (
@@ -1229,7 +1229,30 @@ style={{ minHeight: '80px', height: 'auto' }}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 bg-slate-50 rounded-xl p-4">
                       <InfoRow label="브랜드" value={inq.brand} />
                       <InfoRow label="업로드 일시" value={inq.upload_date} />
-                      <InfoRow label="희망 채널" value={inq.channels} />
+                      <div className="flex gap-2 min-w-0">
+                        <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">희망 채널</span>
+                        <div className="flex-1 min-w-0">
+                          {inq.channels ? inq.channels.split(',').map((ch: string) => ch.trim()).filter(Boolean).map((ch: string) => {
+                            const setting = channelSettings[ch];
+                            const priceVal = setting?.price ? parseFloat(setting.price) : null;
+                            return (
+                              <div key={ch} className="text-xs text-slate-700">
+                                {getChLabel(ch)}{priceVal !== null && priceVal > 0 ? <span className="text-blue-600 font-semibold ml-1">({priceVal.toFixed(1)})</span> : ''}
+                              </div>
+                            );
+                          }) : <span className="text-xs text-slate-400">없음</span>}
+                          {(() => {
+                            if (!inq.channels) return null;
+                            const chs = inq.channels.split(',').map((c: string) => c.trim()).filter(Boolean);
+                            const total = chs.reduce((sum: number, ch: string) => {
+                              const s = channelSettings[ch];
+                              return sum + (s?.price ? parseFloat(s.price) || 0 : 0);
+                            }, 0);
+                            if (total === 0) return null;
+                            return <div className="mt-1 text-xs font-semibold text-slate-600">예상 열액: <span className="text-blue-700">{total.toFixed(1)}만원</span></div>;
+                          })()}
+                        </div>
+                      </div>
                       <InfoRow label="제품 링크" value={inq.product_link} />
                       <InfoRow label="활용 소재" value={inq.material} />
                       <InfoRow label="2차 활용" value={inq.secondary_use} />
@@ -1599,8 +1622,9 @@ style={{ minHeight: '80px', height: 'auto' }}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500">
               <div className="col-span-3">채널</div>
-              <div className="col-span-4">담당자 이름</div>
-              <div className="col-span-4">TTS</div>
+              <div className="col-span-3">담당자 이름</div>
+              <div className="col-span-3">TTS</div>
+              <div className="col-span-2">단가(만원)</div>
               <div className="col-span-1 text-right">삭제</div>
             </div>
         {Object.keys(channelSettings).sort((a, b) => {
@@ -1616,11 +1640,14 @@ style={{ minHeight: '80px', height: 'auto' }}
                   <div className="col-span-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
                     <span className="w-2 h-2 rounded-full bg-amber-400"></span>{getChLabel(ch)}
                   </div>
-                  <div className="col-span-4">
-                    <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info)} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <div className="col-span-3">
+                    <input type="text" defaultValue={cur.person_name} onBlur={(e) => handleSaveChannelSetting(ch, e.target.value, cur.tts_info, cur.price || '')} placeholder="예: 임상이" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
-                  <div className="col-span-4">
-                    <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value)} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <div className="col-span-3">
+                    <input type="text" defaultValue={cur.tts_info} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, e.target.value, cur.price || '')} placeholder="예: 민지 1.3배" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div className="col-span-2">
+                    <input type="number" step="0.1" min="0" defaultValue={cur.price || ''} onBlur={(e) => handleSaveChannelSetting(ch, cur.person_name, cur.tts_info, e.target.value)} placeholder="0.0" className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                   <div className="col-span-1 text-right">
                     {canDeletePermanent() && (<button onClick={() => handleDeleteChannel(ch)} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50">삭제</button>)}
