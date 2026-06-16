@@ -127,7 +127,6 @@ const insertPayload: Record<string, unknown> = {
         video_concept: form.video_concept || null,
         extra: form.extra || null,
         preferred_channels: preferredChannels.length > 0 ? preferredChannels.join(',') : null,
-simple_upload: form.simple_upload || null,
       };
 
 try {
@@ -159,7 +158,6 @@ setTimeout(() => reject(new Error('요청 시간이 초과되었습니다. 네�
           video_concept: insertPayload.video_concept,
           extra: insertPayload.extra,
           preferred_channels: insertPayload.preferred_channels,
-          simple_upload: insertPayload.simple_upload,
           brand: insertPayload.brand,
         })
         .eq('id', existingId)
@@ -192,6 +190,10 @@ return;
 
 setLoading(false);
       router.replace('/portal/complete');
+      // Update simple_upload separately (gracefully handles missing column)
+      if (existingId && form.simple_upload) {
+        supabase.from('inquiries').update({ simple_upload: form.simple_upload }).eq('id', existingId).then(() => {}).catch(() => {});
+      }
             // 세부 정보 제출 알림
             fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'inquiry', data: { brand: session?.brand || session?.name || '-', name: session?.name || '-', phone: '-', preferred_channel: preferredChannels.join(', ') || '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] details error:', err));
 } catch (err: unknown) {
