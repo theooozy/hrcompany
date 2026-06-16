@@ -61,7 +61,7 @@ export default function PortalLoginPage() {
           <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-md mb-3">
             <span className="text-white font-bold">HR</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">문의자 로그인</h1>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">고객 로그인</h1>
           <p className="text-sm text-slate-500">승인된 문의 내역으로 로그인하세요.</p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
