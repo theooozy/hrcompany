@@ -62,6 +62,7 @@ video_concept: '',
 extra: '',
 product_link: '',
 product_link_none: false,
+simple_upload: '',
 });
 const [preferredChannels, setPreferredChannels] = useState<string[]>([]);
 
@@ -126,6 +127,7 @@ const insertPayload: Record<string, unknown> = {
         video_concept: form.video_concept || null,
         extra: form.extra || null,
         preferred_channels: preferredChannels.length > 0 ? preferredChannels.join(',') : null,
+simple_upload: form.simple_upload || null,
       };
 
 try {
@@ -133,10 +135,41 @@ const timeoutPromise = new Promise<never>((_, reject) =>
 setTimeout(() => reject(new Error('요청 시간이 초과되었습니다. 네트워크를 확인해주세요.')), 15000)
 );
 
-const updatePromise = supabase
-.from('inquiries')
-.insert([insertPayload])
-.select();
+// Find existing approved inquiry to update
+    const findResult = await supabase
+      .from('inquiries')
+      .select('id')
+      .eq('name', session.name)
+      .eq('email', session.email)
+      .eq('status', 'approved')
+      .maybeSingle();
+    const existingId = findResult.data?.id;
+
+    let updatePromise;
+    if (existingId) {
+      updatePromise = supabase
+        .from('inquiries')
+        .update({
+          type: 'ad',
+          business_number: insertPayload.business_number,
+          upload_date: insertPayload.upload_date,
+          material: insertPayload.material,
+          product_link: insertPayload.product_link,
+          secondary_use: insertPayload.secondary_use,
+          video_concept: insertPayload.video_concept,
+          extra: insertPayload.extra,
+          preferred_channels: insertPayload.preferred_channels,
+          simple_upload: insertPayload.simple_upload,
+          brand: insertPayload.brand,
+        })
+        .eq('id', existingId)
+        .select();
+    } else {
+      updatePromise = supabase
+        .from('inquiries')
+        .insert([insertPayload])
+        .select();
+    }
 
 const result = await Promise.race([updatePromise, timeoutPromise]);
 const { data, error } = result as { data: any; error: any };
@@ -159,8 +192,8 @@ return;
 
 setLoading(false);
       router.replace('/portal/complete');
-      // テ텔레그램 승인 목록 알림 전송
-      fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'approval', data: { brand: session?.name || '-', channel: (preferredChannels.length > 0) ? preferredChannels.join(', ') : '-', requester: session?.email || '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] approval error:', err));
+            // 세부 정보 제출 알림
+            fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'inquiry', data: { brand: session?.brand || session?.name || '-', name: session?.name || '-', phone: '-', preferred_channel: preferredChannels.join(', ') || '-', created_at: new Date().toLocaleString('ko-KR') } }) }).catch(err => console.error('[Telegram] details error:', err));
 } catch (err: unknown) {
 const msg = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
 setSubmitError(msg);
@@ -295,6 +328,18 @@ className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all $
 <div>
 <label className={lc}>기타 전달 사항</label>
 <textarea name="extra" value={form.extra} onChange={handleChange} rows={2} placeholder="추가 전달 사항을 입력해주세요." className={ic + ' resize-none'} />
+</div>
+
+<div>
+<label className={lc}>단순 업로드 여부</label>
+<div className="space-y-2">
+{['단순 업로드', '단순 업로드 아님'].map(opt => (
+<label key={opt} className="flex items-center gap-2 cursor-pointer">
+<input type="radio" name="simple_upload" value={opt} checked={form.simple_upload === opt} onChange={handleChange} />
+<span className="text-sm text-slate-700">{opt}</span>
+</label>
+))}
+</div>
 </div>
 
 {submitError && (
