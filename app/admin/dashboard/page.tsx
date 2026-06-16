@@ -73,6 +73,7 @@ type Inquiry = {
   deleted?: boolean;
   deleted_from?: string;
   deleted_at?: string;
+simple_upload?: string;
   preferred_channels?: string;
   deadline?: string | null;
   _source?: string;
@@ -1258,6 +1259,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                       <InfoRow label="2차 활용" value={inq.secondary_use} />
                       <InfoRow label="영상 컨셉" value={inq.video_concept} />
                       <InfoRow label="기타" value={inq.extra} />
+<InfoRow label="단순업로드" value={inq.simple_upload || '없음'} />
                       <InfoRow label="담당자" value={inq.name + (inq.phone ? ' · ' + inq.phone : '')} />
                       <InfoRow label="이메일" value={inq.email} />
                       <InfoRow label="사업자번호" value={inq.business_number} />
