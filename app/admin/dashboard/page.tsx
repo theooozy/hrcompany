@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,,
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 const ASSIGNEE_OPTIONS = ['임상이', '이보배']
