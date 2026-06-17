@@ -1424,7 +1424,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                           <div className="font-medium text-slate-700">{ch}</div>
                                                     </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
-                          {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.length > 10 ? deadlineStr.substring(0, 16).replace('T', ' ') : deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
+                          {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.length > 10 ? deadlineStr.substring(0, 16).replace('T', ' ') : deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}                        </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <select value={sa[ch] || ''} onChange={(e) => handleAssign(inq.id, ch, 'storyboard', e.target.value)} className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                             <option value="">선택</option>
@@ -1821,8 +1821,7 @@ style={{ minHeight: '80px', height: 'auto' }}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">제목 <span className="text-red-500">*</span></label>
-                <input value={addPanelForm.product_name} onChange={e => setAddPanelForm(f => ({ ...f, product_name: e.target.value }))} placeholder="제목을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
+deadlineStr.substring(0, 10)              </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">브랜드명</label>
                 <input value={addPanelForm.brand_name} onChange={e => setAddPanelForm(f => ({ ...f, brand_name: e.target.value }))} placeholder="브랜드명을 입력하세요" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
