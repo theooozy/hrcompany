@@ -1422,11 +1422,9 @@ style={{ minHeight: '80px', height: 'auto' }}
                         <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap max-w-[140px] truncate">{inq.brand || '-'}</td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           <div className="font-medium text-slate-700">{ch}</div>
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{row.inq._productName}</div>
-                        </td>
+                                                    </td>
                         <td className="px-3 py-2 text-slate-600 text-xs whitespace-nowrap">
                           {deadlineStr ? <span className="text-blue-600 font-medium">{deadlineStr.length > 10 ? deadlineStr.substring(0, 16).replace('T', ' ') : deadlineStr.substring(0, 10)}</span> : <span className="text-slate-300">없음</span>}
-                        </td>
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                           <select value={sa[ch] || ''} onChange={(e) => handleAssign(inq.id, ch, 'storyboard', e.target.value)} className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                             <option value="">선택</option>
