@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_URL!
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 const ASSIGNEE_OPTIONS = ['임상이', '이보배']
@@ -541,7 +541,7 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
     const result: any[] = [];
     // 승인된 문의에서 채널별로 분리
     inquiries.filter(i => i.status === 'approved' && i.scheduled_date && (i.scheduled_date === dateStr || i.scheduled_date.startsWith(dateStr))).forEach(inq => {
-      const channels = inq.channels ? inq.channels.split(',').map((c: string) => c.trim()).filter(Boolean) : ['-'];
+      const channels = inq.preferred_channels ? inq.preferred_channels.split(',').map((c: string) => c.trim()).filter(Boolean) : ['-'];
       channels.forEach((ch: string, idx: number) => {
         result.push({ ...inq, _calendarChannel: ch, _conceptIndex: idx + 1, _eventKey: inq.id + '__ch__' + ch });
       });
@@ -706,7 +706,7 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
 const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string) => {
   const inq = inquiries.find(i => i.id === inquiryId);
   if (!inq) return;
-  const allChannels = (inq.channels || '').split(',').map((c: string) => c.trim()).filter(Boolean);
+  const allChannels = (inq.preferred_channels || '').split(',').map((c: string) => c.trim()).filter(Boolean);
   const remainingChannels = allChannels.filter((c: string) => c !== channel);
   if (!window.confirm('선택한 항목만 삭제하시겠습니까?')) return;
   const now = new Date().toISOString();
@@ -1078,7 +1078,7 @@ style={{ minHeight: '80px', height: 'auto' }}
     const rows: { inq: Inquiry; channel: string; conceptName: string; rowKey: string }[] = [];
     const brandCounter: Record<string, number> = {};
     [...approvedInquiries].filter(inq => !selectedCalendarDate || inq.scheduled_date === selectedCalendarDate).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach(inq => {
-      const chans = (inq.channels || '').split(',').map(c => c.trim()).filter(Boolean);
+      const chans = (inq.preferred_channels || '').split(',').map(c => c.trim()).filter(Boolean);
       const list = chans.length ? chans : ['-'];
       list.forEach(ch => {
         const brandKey = inq.brand || '-';
@@ -1231,7 +1231,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                       <div className="flex gap-2 min-w-0">
                         <span className="text-xs text-slate-400 w-24 shrink-0 pt-0.5">희망 채널</span>
                         <div className="flex-1 min-w-0">
-                          {inq.channels ? inq.channels.split(',').map((ch: string) => ch.trim()).filter(Boolean).map((ch: string) => {
+                          {inq.preferred_channels ? inq.preferred_channels.split(',').map((ch: string) => ch.trim()).filter(Boolean).map((ch: string) => {
                             const setting = channelSettings[ch];
                             const priceVal = setting?.price ? parseFloat(setting.price) : null;
                             return (
@@ -1241,8 +1241,8 @@ style={{ minHeight: '80px', height: 'auto' }}
                             );
                           }) : <span className="text-xs text-slate-400">없음</span>}
                           {(() => {
-                            if (!inq.channels) return null;
-                            const chs = inq.channels.split(',').map((c: string) => c.trim()).filter(Boolean);
+                            if (!inq.preferred_channels) return null;
+                            const chs = inq.preferred_channels.split(',').map((c: string) => c.trim()).filter(Boolean);
                             const total = chs.reduce((sum: number, ch: string) => {
                               const s = channelSettings[ch];
                               return sum + (s?.price ? parseFloat(s.price) || 0 : 0);
@@ -1343,7 +1343,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                       {inq.status === 'rejected' && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">거절</span>}
                       {(!inq.status || inq.status === 'pending') && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">대기</span>}
                     </div>
-                    <div className="text-sm text-slate-500 truncate">{inq.name} · {inq.email} · {inq.channels}</div>
+                    <div className="text-sm text-slate-500 truncate">{inq.name} · {inq.email} · {inq.preferred_channels}</div>
                     <div className="text-xs text-slate-400 mt-1">제출일: {new Date(inq.created_at).toLocaleDateString('ko-KR')}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1513,7 +1513,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="font-bold text-slate-700">{inq.brand || '브랜드 미입력'}</span>
                         {inq.deleted_from && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">출처: {inq.deleted_from}</span>}
-                        {inq.channels && <span className="text-xs text-slate-400">{inq.channels}</span>}
+                        {inq.preferred_channels && <span className="text-xs text-slate-400">{inq.preferred_channels}</span>}
                       </div>
                       <div className="text-xs text-slate-400">
                         {inq.name} · {inq.email}
