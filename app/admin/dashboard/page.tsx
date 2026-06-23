@@ -717,7 +717,7 @@ const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string
   } else {
     // Multiple channels: remove this channel from the original inquiry
     const newChannels = remainingChannels.join(',');
-    const { error: updateError } = await supabase.from('inquiries').update({ channels: newChannels }).eq('id', inquiryId);
+    const { error: updateError } = await supabase.from('inquiries').update({ preferred_channels: newChannels }).eq('id', inquiryId);
     if (updateError) { alert('삭제 실패: ' + updateError.message); return; }
     // Create a separate trashed record for the deleted channel
     const trashedRecord: Record<string, unknown> = {};
@@ -725,7 +725,7 @@ const handleRemoveChannelFromInquiry = async (inquiryId: string, channel: string
     for (const [k, v] of Object.entries(inq)) {
       if (!skipFields.includes(k)) trashedRecord[k] = v;
     }
-    trashedRecord.channels = channel;
+    trashedRecord.preferred_channels = channel;
     trashedRecord.deleted = true;
     trashedRecord.deleted_at = now;
     trashedRecord.deleted_from = '표/캘린더';
