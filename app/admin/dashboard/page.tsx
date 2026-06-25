@@ -99,6 +99,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [telegramTestResult, setTelegramTestResult] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
+const [tableMonthFilter, setTableMonthFilter] = useState<string>('');
 
   const handleTelegramTest = async () => {
     setTelegramTestResult(null);
@@ -530,7 +531,67 @@ const [addPanelChannels, setAddPanelChannels] = useState<string[]>([]);
     else alert('오류: ' + error.message);
   };
 
-  const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/admin/login'); };
+  
+  const handleExcelDownload = () => {
+    const rows = filteredTableRows;
+    const headers = ['번호','브랜드','채널','데드라인','콘티','영상','작업타입','작업','담당자','업로드','2차활용','메모'];
+    const csvRows = [headers.join(',')];
+    rows.forEach((row: any, idx: number) => {
+      const inq = row.inq;
+      const ch = row.channel;
+      const sa = ((inq.storyboard_assignees as Record<string,string>) || {});
+      const va = ((inq.video_assignees as Record<string,string>) || {});
+      const deadlineStr = inq.deadline || inq.scheduled_date || '';
+      const deadline = deadlineStr ? deadlineStr.substring(0, 16).replace('T', ' ') : '없음';
+      const storyboard = sa[ch] || '없음';
+      const video = va[ch] || '없음';
+      const workType = ((inq.work_types && inq.work_types[ch]) || inq.work_type || '없음');
+      const workStatus = ((inq.work_statuses && inq.work_statuses[ch]) || inq.work_status || '없음');
+      const name = inq.name || '없음';
+      const youtube = inq.youtube_url || '없음';
+      const secondary = inq.secondary_use || '없음';
+      const memo = (inq.memo || '없음').replace(/,/g, ' ').replace(/\n/g, ' ');
+      const brand = (inq.brand || '없음');
+      const cols = [
+        String(idx+1),
+        '"' + brand.replace(/"/g,'""') + '"',
+        '"' + ch.replace(/"/g,'""') + '"',
+        '"' + deadline + '"',
+        '"' + storyboard + '"',
+        '"' + video + '"',
+        '"' + workType + '"',
+        '"' + workStatus + '"',
+        '"' + name + '"',
+        '"' + youtube + '"',
+        '"' + secondary + '"',
+        '"' + memo + '"',
+      ];
+      csvRows.push(cols.join(','));
+    });
+    const BOM = '\uFEFF';
+    const csvContent = BOM + csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const monthLabel = tableMonthFilter === 'no-deadline' ? '데드라인없음' : tableMonthFilter ? tableMonthFilter : '전체';
+    a.download = '광고일정_' + monthLabel + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/admin/login'); };
+
+const getTableMonthOptions = (): string[] => {
+  const months = new Set<string>();
+  approvedInquiries.forEach(inq => {
+    const d = inq.scheduled_date || inq.deadline;
+    if (d) months.add(d.substring(0, 7));
+  });
+  manualSchedules.forEach((s: any) => {
+    if (s.deadline) months.add(s.deadline.substring(0, 7));
+  });
+  return Array.from(months).sort();
+};
 
   const getDaysInMonth = (date: Date) => {
     const y = date.getFullYear(); const m = date.getMonth();
@@ -1115,6 +1176,18 @@ style={{ minHeight: '80px', height: 'auto' }}
     return [...rows, ...scheduleRows];
   })();
 
+  const filteredTableRows = tableMonthFilter === 'no-deadline'
+    ? tableRows.filter(row => {
+        const d = row.inq.deadline || row.inq.scheduled_date || null;
+        return !d;
+      })
+    : tableMonthFilter
+    ? tableRows.filter(row => {
+        const d = row.inq.deadline || row.inq.scheduled_date || null;
+        return d && d.substring(0, 7) === tableMonthFilter;
+      })
+    : tableRows;
+
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
     if (!value) return null;
     const isUrl = typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
@@ -1395,7 +1468,25 @@ style={{ minHeight: '80px', height: 'auto' }}
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center flex-wrap">
+                <select
+                  value={tableMonthFilter}
+                  onChange={e => setTableMonthFilter(e.target.value)}
+                  className="px-3 py-2 text-sm text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">전체 보기</option>
+                  {getTableMonthOptions().map(m => (
+                    <option key={m} value={m}>{m.substring(0,4)}년 {parseInt(m.substring(5,7))}월</option>
+                  ))}
+                  <option value="no-deadline">데드라인 없음</option>
+                </select>
+                {tableMonthFilter && (
+                  <button
+                    onClick={() => setTableMonthFilter('')}
+                    className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
+                  >✕ 필터 해제</button>
+                )}
+                <button onClick={handleExcelDownload} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 shadow-sm transition-all">📥 엑셀</button>
                 <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
                 <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
               </div>
@@ -1410,7 +1501,7 @@ style={{ minHeight: '80px', height: 'auto' }}
                   </tr>
                 </thead>
                 <tbody>
-                  {tableRows.map((row, idx) => {
+                  {filteredTableRows.map((row, idx) => {
                     const inq = row.inq;
                     const ch = row.channel;
                     const sa = (inq.storyboard_assignees as Record<string, string> | null | undefined) || {};
