@@ -100,6 +100,12 @@ export default function DashboardPage() {
   const [telegramTestResult, setTelegramTestResult] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({});
 const [tableMonthFilter, setTableMonthFilter] = useState<string>('');
+const [tableFilters, setTableFilters] = useState<Array<{ type: 'deadline' | 'upload'; mode: 'month' | 'range'; value: string; value2?: string }>>([]);
+const [showFilterBar, setShowFilterBar] = useState(false);
+const [filterPickerOpen, setFilterPickerOpen] = useState<null | 'deadline' | 'upload'>(null);
+const [filterTempMode, setFilterTempMode] = useState<'month' | 'range'>('month');
+const [filterTempValue, setFilterTempValue] = useState('');
+const [filterTempValue2, setFilterTempValue2] = useState('');
 
   const handleTelegramTest = async () => {
     setTelegramTestResult(null);
@@ -828,6 +834,9 @@ if (v.length === 10) return v + 'T00:00';
 return v.substring(0, 16);
 };
 const [editDeadline, setEditDeadline] = useState(toDatetimeLocal(deadlineRaw));
+const uploadDateRaw = detail.upload_date || '';
+const [editUploadDate, setEditUploadDate] = useState(toDatetimeLocal(uploadDateRaw));
+const uploadDateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const [editMaterial, setEditMaterial] = useState(detail.material || '');
 const [editProductLink, setEditProductLink] = useState(detail.product_link || '');
 const [editMemo, setEditMemo] = useState(detail.memo || '');
@@ -1043,7 +1052,25 @@ className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border
 </div>
 } />
 
-{detail.upload_date && <InfoLine label="업로드 일시" value={<span className="text-sm">{detail.upload_date}</span>} />}
+<InfoLine label="업로드 일시" value={
+<div>
+<input
+type="datetime-local"
+value={editUploadDate}
+onChange={e => {
+setEditUploadDate(e.target.value);
+if (uploadDateTimerRef.current) clearTimeout(uploadDateTimerRef.current);
+uploadDateTimerRef.current = setTimeout(() => { autoSave('upload_date', e.target.value || null); }, 800);
+}}
+onBlur={() => {
+if (uploadDateTimerRef.current) clearTimeout(uploadDateTimerRef.current);
+autoSave('upload_date', editUploadDate || null);
+}}
+className="w-full text-sm text-slate-800 bg-transparent border-0 border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-0.5 transition-all"
+/>
+{!editUploadDate && <span className="text-xs text-slate-400">없음</span>}
+</div>
+} />
 {detail.secondary_use ? <InfoLine label="2차 활용" value={<span className="text-sm">{detail.secondary_use}</span>} /> : null}
 
 {/* 업로드 링크 (유튜브) - 2차 활용 아래 */}
@@ -1176,17 +1203,23 @@ style={{ minHeight: '80px', height: 'auto' }}
     return [...rows, ...scheduleRows];
   })();
 
-  const filteredTableRows = tableMonthFilter === 'no-deadline'
-    ? tableRows.filter(row => {
-        const d = row.inq.deadline || row.inq.scheduled_date || null;
-        return !d;
-      })
-    : tableMonthFilter
-    ? tableRows.filter(row => {
-        const d = row.inq.deadline || row.inq.scheduled_date || null;
-        return d && d.substring(0, 7) === tableMonthFilter;
-      })
-    : tableRows;
+  const filteredTableRows = (() => {
+    let rows = tableMonthFilter === 'no-deadline'
+      ? tableRows.filter(row => { const d = row.inq.deadline || row.inq.scheduled_date || null; return !d; })
+      : tableMonthFilter
+      ? tableRows.filter(row => { const d = row.inq.deadline || row.inq.scheduled_date || null; return d && d.substring(0, 7) === tableMonthFilter; })
+      : tableRows;
+    for (const f of tableFilters) {
+      rows = rows.filter(row => {
+        const inq = row.inq;
+        const fieldVal = f.type === 'deadline' ? (inq.deadline || inq.scheduled_date || '') : (inq.upload_date || '');
+        if (!fieldVal) return false;
+        const ds = fieldVal.substring(0, 10);
+        return f.mode === 'month' ? ds.substring(0, 7) === f.value : ds >= f.value && ds <= (f.value2 || f.value);
+      });
+    }
+    return rows;
+  })();
 
   const InfoRow = ({ label, value }: { label: string; value?: string }) => {
     if (!value) return null;
@@ -1469,29 +1502,90 @@ style={{ minHeight: '80px', height: 'auto' }}
                 )}
               </div>
               <div className="flex gap-2 items-center flex-wrap">
-                <select
-                  value={tableMonthFilter}
-                  onChange={e => setTableMonthFilter(e.target.value)}
-                  className="px-3 py-2 text-sm text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                <button
+                  onClick={() => setShowFilterBar(v => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border rounded-xl transition-all ${showFilterBar || tableFilters.length > 0 || tableMonthFilter ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                 >
-                  <option value="">전체 보기</option>
-                  {getTableMonthOptions().map(m => (
-                    <option key={m} value={m}>{m.substring(0,4)}년 {parseInt(m.substring(5,7))}월</option>
-                  ))}
-                  <option value="no-deadline">데드라인 없음</option>
-                </select>
-                {tableMonthFilter && (
-                  <button
-                    onClick={() => setTableMonthFilter('')}
-                    className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
-                  >✕ 필터 해제</button>
-                )}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  필터 {(tableFilters.length > 0 || tableMonthFilter) && <span className="ml-0.5 px-1.5 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded-full">{tableFilters.length + (tableMonthFilter ? 1 : 0)}</span>}
+                </button>
                 <button onClick={handleExcelDownload} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 shadow-sm transition-all">📥 엑셀</button>
                 <button onClick={fetchInquiries} className="px-4 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">새로고침</button>
                 <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-all"><span className="text-base leading-none">+</span> 일정 추가</button>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+            {/* Filter Bar */}
+{showFilterBar && (
+  <div className="mb-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm" onClick={e => e.stopPropagation()}>
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <span className="text-xs font-semibold text-slate-500 mr-1">적용된 필터:</span>
+      {tableMonthFilter && (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+          📅 데드라인 {tableMonthFilter === 'no-deadline' ? '없음' : tableMonthFilter.substring(0,4) + '년 ' + parseInt(tableMonthFilter.substring(5,7)) + '월'}
+          <button onClick={() => setTableMonthFilter('')} className="ml-1 text-blue-400 hover:text-red-500 font-bold">×</button>
+        </span>
+      )}
+      {tableFilters.map((f, i) => (
+        <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+          {f.type === 'deadline' ? '📅 데드라인' : '📤 업로드'}
+          {f.mode === 'month' ? (' ' + f.value.substring(0,4) + '년 ' + parseInt(f.value.substring(5,7)) + '월') : (' ' + f.value + ' ~ ' + (f.value2 || f.value))}
+          <button onClick={() => setTableFilters(prev => prev.filter((_,j) => j !== i))} className="ml-1 text-purple-400 hover:text-red-500 font-bold">×</button>
+        </span>
+      ))}
+      {(tableFilters.length > 0 || tableMonthFilter) ? (
+        <button onClick={() => { setTableFilters([]); setTableMonthFilter(''); }} className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded-lg hover:bg-red-50">전체 해제</button>
+      ) : <span className="text-xs text-slate-400">없음</span>}
+    </div>
+    <div className="flex flex-wrap gap-2">
+      <div className="relative">
+        <button onClick={e => { e.stopPropagation(); setFilterPickerOpen(filterPickerOpen === 'deadline' ? null : 'deadline'); setFilterTempMode('month'); setFilterTempValue(''); setFilterTempValue2(''); }} className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-300 rounded-xl text-xs text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-all">+ 데드라인 필터</button>
+        {filterPickerOpen === 'deadline' && (
+          <div className="absolute left-0 top-9 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72" onClick={e => e.stopPropagation()}>
+            <p className="text-xs font-semibold text-slate-600 mb-3">데드라인 기준 필터</p>
+            <div className="flex gap-2 mb-3">
+              <button onClick={() => setFilterTempMode('month')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${filterTempMode === 'month' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>월별</button>
+              <button onClick={() => setFilterTempMode('range')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${filterTempMode === 'range' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>기간</button>
+            </div>
+            {filterTempMode === 'month' ? (
+              <select value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3">
+                <option value="">월 선택</option>
+                {getTableMonthOptions().map(m => <option key={m} value={m}>{m.substring(0,4)}년 {parseInt(m.substring(5,7))}월</option>)}
+              </select>
+            ) : (
+              <div className="space-y-2 mb-3">
+                <input type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                <input type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+              </div>
+            )}
+            <button disabled={!filterTempValue} onClick={() => { if (!filterTempValue) return; setTableFilters(prev => [...prev, { type: 'deadline', mode: filterTempMode, value: filterTempValue, value2: filterTempValue2 || undefined }]); setFilterPickerOpen(null); setFilterTempValue(''); setFilterTempValue2(''); }} className="w-full py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 disabled:opacity-50">적용</button>
+          </div>
+        )}
+      </div>
+      <div className="relative">
+        <button onClick={e => { e.stopPropagation(); setFilterPickerOpen(filterPickerOpen === 'upload' ? null : 'upload'); setFilterTempMode('month'); setFilterTempValue(''); setFilterTempValue2(''); }} className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-300 rounded-xl text-xs text-slate-500 hover:border-purple-400 hover:text-purple-600 transition-all">+ 업로드 날짜 필터</button>
+        {filterPickerOpen === 'upload' && (
+          <div className="absolute left-0 top-9 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72" onClick={e => e.stopPropagation()}>
+            <p className="text-xs font-semibold text-slate-600 mb-3">업로드 날짜 기준 필터</p>
+            <div className="flex gap-2 mb-3">
+              <button onClick={() => setFilterTempMode('month')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${filterTempMode === 'month' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600'}`}>월별</button>
+              <button onClick={() => setFilterTempMode('range')} className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${filterTempMode === 'range' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600'}`}>기간</button>
+            </div>
+            {filterTempMode === 'month' ? (
+              <input type="month" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3" />
+            ) : (
+              <div className="space-y-2 mb-3">
+                <input type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                <input type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+              </div>
+            )}
+            <button disabled={!filterTempValue} onClick={() => { if (!filterTempValue) return; setTableFilters(prev => [...prev, { type: 'upload', mode: filterTempMode, value: filterTempValue, value2: filterTempValue2 || undefined }]); setFilterPickerOpen(null); setFilterTempValue(''); setFilterTempValue2(''); }} className="w-full py-2 bg-purple-600 text-white rounded-xl text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">적용</button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+<div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
