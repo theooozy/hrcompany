@@ -1553,19 +1553,19 @@ style={{ minHeight: '80px', height: 'auto' }}
               </select>
             ) : (
               <div className="space-y-2 mb-3">
-                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
-                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue ? filterTempValue : <span className="text-slate-400">시작일 선택</span>}</span>
-                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrDStart'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors p-0.5 rounded">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </button>
-                  <input id="fltrDStart" type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="sr-only" />
+                <div className="flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none pointer-events-none">{filterTempValue ? filterTempValue : <span className="text-slate-400">시작일 선택</span>}</span>
+                  <div className="relative ml-2 flex-shrink-0 w-5 h-5">
+                    <svg className="w-full h-full text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" value={filterTempValue} onChange={e => { e.stopPropagation(); setFilterTempValue(e.target.value); }} onClick={e => e.stopPropagation()} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" tabIndex={-1} />
+                  </div>
                 </div>
-                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
-                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue2 ? filterTempValue2 : <span className="text-slate-400">종료일 선택</span>}</span>
-                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrDEnd'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors p-0.5 rounded">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </button>
-                  <input id="fltrDEnd" type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="sr-only" />
+                <div className="flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none pointer-events-none">{filterTempValue2 ? filterTempValue2 : <span className="text-slate-400">종료일 선택</span>}</span>
+                  <div className="relative ml-2 flex-shrink-0 w-5 h-5">
+                    <svg className="w-full h-full text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" value={filterTempValue2} onChange={e => { e.stopPropagation(); setFilterTempValue2(e.target.value); }} onClick={e => e.stopPropagation()} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" tabIndex={-1} />
+                  </div>
                 </div>
               </div>
             )}
@@ -1586,19 +1586,19 @@ style={{ minHeight: '80px', height: 'auto' }}
               <input type="month" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3" />
             ) : (
               <div className="space-y-2 mb-3">
-                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
-                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue ? filterTempValue : <span className="text-slate-400">시작일 선택</span>}</span>
-                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrUStart'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-purple-500 transition-colors p-0.5 rounded">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </button>
-                  <input id="fltrUStart" type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="sr-only" />
+                <div className="flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none pointer-events-none">{filterTempValue ? filterTempValue : <span className="text-slate-400">시작일 선택</span>}</span>
+                  <div className="relative ml-2 flex-shrink-0 w-5 h-5">
+                    <svg className="w-full h-full text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" value={filterTempValue} onChange={e => { e.stopPropagation(); setFilterTempValue(e.target.value); }} onClick={e => e.stopPropagation()} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" tabIndex={-1} />
+                  </div>
                 </div>
-                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
-                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue2 ? filterTempValue2 : <span className="text-slate-400">종료일 선택</span>}</span>
-                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrUEnd'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-purple-500 transition-colors p-0.5 rounded">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </button>
-                  <input id="fltrUEnd" type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="sr-only" />
+                <div className="flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none pointer-events-none">{filterTempValue2 ? filterTempValue2 : <span className="text-slate-400">종료일 선택</span>}</span>
+                  <div className="relative ml-2 flex-shrink-0 w-5 h-5">
+                    <svg className="w-full h-full text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <input type="date" value={filterTempValue2} onChange={e => { e.stopPropagation(); setFilterTempValue2(e.target.value); }} onClick={e => e.stopPropagation()} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" tabIndex={-1} />
+                  </div>
                 </div>
               </div>
             )}
