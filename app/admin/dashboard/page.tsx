@@ -1553,8 +1553,20 @@ style={{ minHeight: '80px', height: 'auto' }}
               </select>
             ) : (
               <div className="space-y-2 mb-3">
-                <input type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
-                <input type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue ? filterTempValue : <span className="text-slate-400">시작일 선택</span>}</span>
+                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrDStart'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors p-0.5 rounded">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </button>
+                  <input id="fltrDStart" type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="sr-only" />
+                </div>
+                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue2 ? filterTempValue2 : <span className="text-slate-400">종료일 선택</span>}</span>
+                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrDEnd'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-blue-500 transition-colors p-0.5 rounded">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </button>
+                  <input id="fltrDEnd" type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="sr-only" />
+                </div>
               </div>
             )}
             <button disabled={!filterTempValue} onClick={() => { if (!filterTempValue) return; setTableFilters(prev => [...prev, { type: 'deadline', mode: filterTempMode, value: filterTempValue, value2: filterTempValue2 || undefined }]); setFilterPickerOpen(null); setFilterTempValue(''); setFilterTempValue2(''); }} className="w-full py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 disabled:opacity-50">적용</button>
@@ -1574,8 +1586,20 @@ style={{ minHeight: '80px', height: 'auto' }}
               <input type="month" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3" />
             ) : (
               <div className="space-y-2 mb-3">
-                <input type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
-                <input type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue ? filterTempValue : <span className="text-slate-400">시작일 선택</span>}</span>
+                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrUStart'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-purple-500 transition-colors p-0.5 rounded">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </button>
+                  <input id="fltrUStart" type="date" value={filterTempValue} onChange={e => setFilterTempValue(e.target.value)} className="sr-only" />
+                </div>
+                <div className="relative flex items-center border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white cursor-default">
+                  <span className="flex-1 text-slate-700 min-w-0 select-none">{filterTempValue2 ? filterTempValue2 : <span className="text-slate-400">종료일 선택</span>}</span>
+                  <button type="button" onClick={e => { e.stopPropagation(); const el = document.getElementById('fltrUEnd'); if(el){try{el.showPicker();}catch{el.focus();}} }} className="ml-2 flex-shrink-0 text-slate-400 hover:text-purple-500 transition-colors p-0.5 rounded">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </button>
+                  <input id="fltrUEnd" type="date" value={filterTempValue2} onChange={e => setFilterTempValue2(e.target.value)} className="sr-only" />
+                </div>
               </div>
             )}
             <button disabled={!filterTempValue} onClick={() => { if (!filterTempValue) return; setTableFilters(prev => [...prev, { type: 'upload', mode: filterTempMode, value: filterTempValue, value2: filterTempValue2 || undefined }]); setFilterPickerOpen(null); setFilterTempValue(''); setFilterTempValue2(''); }} className="w-full py-2 bg-purple-600 text-white rounded-xl text-xs font-semibold hover:bg-purple-700 disabled:opacity-50">적용</button>
